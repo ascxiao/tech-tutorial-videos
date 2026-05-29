@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Player, PlayerRef } from "@remotion/player";
-import { Code, Music, Check, Volume2, Mic, Settings, PlayCircle, Terminal, Upload } from "lucide-react";
+import { Code, Music, Volume2, Settings, PlayCircle, Terminal, Upload } from "lucide-react";
 import { TutorialData, WordCaption, LineTiming, calculateAnimationDuration } from "../types";
 import { PureVerticalVideo } from "./PureVerticalVideo";
 
@@ -40,6 +40,15 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
   const [status, setStatus] = useState<"idle" | "tts" | "whisper" | "save" | "render">("idle");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success">("idle");
 
+  // Render Settings Modal States
+  const [showRenderModal, setShowRenderModal] = useState(false);
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [renderStep, setRenderStep] = useState<"idle" | "rendering" | "success" | "failed">("idle");
+  const [renderError, setRenderError] = useState("");
+  const [renderResolution, setRenderResolution] = useState("1080x1920");
+  const [renderFps, setRenderFps] = useState("30");
+  const [renderCodec, setRenderCodec] = useState("h264");
+
   // Player Ref & Playhead sync
   const playerRef = useRef<PlayerRef>(null);
   const [frame, setFrame] = useState(0);
@@ -51,6 +60,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
     beforeCodeSnippet,
     beforeDurationMs,
     lineIntervalMs,
+    captions,
   });
 
   // Add a log entry helper
@@ -154,88 +164,163 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
     setNarrationText((prev) => prev || fullNarration);
   }, [parseCodeComments]);
 
-  // A. Trigger neural Edge-TTS voice synthesis
-  const handleGenerateTTS = async () => {
-    if (!narrationText.trim()) {
-      addLog("Error: Narration text is empty. Add sync comments inside your code snippet or type in narration!");
-      return;
-    }
-    setStatus("tts");
-    addLog(`Synthesizing neural voiceover for tutorial-${id}...`);
-    try {
-      const res = await fetch("http://localhost:3005/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: narrationText, id, voiceName }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        addLog("TTS successfully synthesized! Voiceover audio file saved locally.");
-      } else {
-        addLog(`TTS failed: ${data.error}`);
-      }
-    } catch {
-      addLog("Failed to contact local Express TTS backend service.");
-    }
-    setStatus("idle");
+
+
+  // D. Compile video to MP4 using Remotion headless renderer in local command-line
+  const handleRenderVideo = () => {
+    setShowRenderModal(true);
+    setRenderStep("idle");
+    setRenderProgress(0);
+    setRenderError("");
   };
 
-  // B. Run Whispering Transcription to get word-level JSON timestamps
-  const handleTranscribe = async () => {
-    setStatus("whisper");
-    addLog(`Launching local faster-whisper CPU model to transcribe audio-${id}...`);
+  const handleStartRender = async () => {
+    setRenderStep("rendering");
+    setRenderProgress(0);
+    setRenderError("");
+    setStatus("render");
+    addLog(`Initiating background headless Remotion rendering for tutorial-${id} (${renderResolution}, ${renderFps} FPS, ${renderCodec})...`);
+
     try {
-      const res = await fetch("http://localhost:3005/api/transcribe", {
+      const res = await fetch("http://localhost:3005/api/render", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
-      if (data.success) {
-        setCaptions(data.captions);
-        addLog(`Whisper successfully completed! Parsed ${data.captions.length} words.`);
-      } else {
-        addLog(`Whisper failed: ${data.error}`);
+      if (!data.success) {
+        setRenderStep("failed");
+        setRenderError(data.error || "Failed to start render");
+        addLog(`[RENDER FAILED] ${data.error}`);
+        setStatus("idle");
+        return;
       }
+
+      // Begin status polling
+      const interval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`http://localhost:3005/api/render/status/${id}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            setRenderProgress(statusData.progress);
+            if (statusData.status === "success") {
+              setRenderStep("success");
+              setRenderProgress(100);
+              addLog(`[SUCCESS] Pure vertical 9:16 video rendered: public/output_${id}.mp4!`);
+              setStatus("idle");
+              clearInterval(interval);
+            } else if (statusData.status === "failed") {
+              setRenderStep("failed");
+              setRenderError(statusData.error || "Rendering process exited with an error.");
+              addLog(`[RENDER FAILED] ${statusData.error}`);
+              setStatus("idle");
+              clearInterval(interval);
+            }
+          }
+        } catch (err) {
+          console.error("Error polling render status:", err);
+        }
+      }, 800);
+
     } catch {
-      addLog("Failed to contact local Whisper transcription backend service.");
+      setRenderStep("failed");
+      setRenderError("Failed to communicate with the render server.");
+      addLog("Failed to contact Express render compiler service.");
+      setStatus("idle");
     }
-    setStatus("idle");
   };
 
-  // C. Run Code-Audio Alignment and save tutorial metadata to tutorials.json directly!
-  const handleAlignAndSave = async () => {
-    if (captions.length === 0) {
-      addLog("Error: No transcriptions found. Run Whisper Transcription first!");
+  const handleOpenFolder = async () => {
+    try {
+      addLog(`Opening directory highlighting output_${id}.mp4...`);
+      const res = await fetch("http://localhost:3005/api/open-folder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        addLog("[SUCCESS] Opened output directory successfully.");
+      } else {
+        addLog("Failed to locate rendered file on disk.");
+      }
+    } catch {
+      addLog("Error opening directory folder.");
+    }
+  };
+
+  // Unified Auto-Produce Pipeline: TTS -> Whisper -> Sync & Save -> Render Modal Launch
+  const handleAutoProduceVideo = async () => {
+    if (!narrationText.trim()) {
+      addLog("Error: Narration text is empty. Cannot start auto-production.");
       return;
     }
-    
+
+    // 1. Generate TTS
+    setStatus("tts");
+    addLog("[AUTO-PRODUCE] Step 1/4: Synthesizing neural voiceover...");
+    try {
+      const ttsRes = await fetch("http://localhost:3005/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: narrationText, id, voiceName }),
+      });
+      const ttsData = await ttsRes.json();
+      if (!ttsData.success) {
+        addLog(`[AUTO-PRODUCE FAILED] TTS failed: ${ttsData.error}`);
+        setStatus("idle");
+        return;
+      }
+      addLog("[AUTO-PRODUCE] TTS voiceover generation completed successfully.");
+    } catch {
+      addLog("[AUTO-PRODUCE FAILED] Failed to contact local Express TTS service.");
+      setStatus("idle");
+      return;
+    }
+
+    // 2. Whisper Transcription
+    setStatus("whisper");
+    addLog("[AUTO-PRODUCE] Step 2/4: Transcribing speech with Whisper CPU...");
+    let latestCaptions: WordCaption[] = [];
+    try {
+      const transcribeRes = await fetch("http://localhost:3005/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const transcribeData = await transcribeRes.json();
+      if (!transcribeData.success) {
+        addLog(`[AUTO-PRODUCE FAILED] Transcription failed: ${transcribeData.error}`);
+        setStatus("idle");
+        return;
+      }
+      latestCaptions = transcribeData.captions;
+      setCaptions(latestCaptions);
+      addLog(`[AUTO-PRODUCE] Whisper completed. Transcribed ${latestCaptions.length} words.`);
+    } catch {
+      addLog("[AUTO-PRODUCE FAILED] Failed to contact local Whisper transcription service.");
+      setStatus("idle");
+      return;
+    }
+
+    // 3. Align & Save Config
     setStatus("save");
-    addLog("Aligning code segments with subtitle timestamps...");
-    
+    addLog("[AUTO-PRODUCE] Step 3/4: Aligning typing reveals with speech timestamps...");
     const { cleanedCode, speechSegments } = parseCodeComments();
-    
     const alignedTimings: LineTiming[] = [];
 
     if (speechSegments.length > 0) {
-      // Clean punctuation regex using RegExp constructor to satisfy strict ESLint rules
       const puncRegex = new RegExp("[.,/#!$%^&*;:{}=\\-_`~()]", "g");
-      
-      // Perform sequential word alignment
       let currentWordIdx = 0;
-      
       speechSegments.forEach((seg) => {
         const segWords = seg.speech.toLowerCase().split(/\s+/);
         const segWordsCleaned = segWords.map(w => w.replace(puncRegex, "")).filter(Boolean);
-        
         if (segWordsCleaned.length === 0) return;
-        
         const startWordIdx = currentWordIdx;
         
         segWordsCleaned.forEach((w) => {
           let lookahead = 0;
-          while ((currentWordIdx + lookahead) < captions.length) {
-            const capW = captions[currentWordIdx + lookahead].word.toLowerCase().replace(puncRegex, "");
+          while ((currentWordIdx + lookahead) < latestCaptions.length) {
+            const capW = latestCaptions[currentWordIdx + lookahead].word.toLowerCase().replace(puncRegex, "");
             if (capW === w || capW.includes(w) || w.includes(capW)) {
               currentWordIdx += lookahead + 1;
               break;
@@ -243,12 +328,9 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
             lookahead += 1;
           }
         });
-        
-        const endWordIdx = Math.min(captions.length - 1, currentWordIdx - 1);
-        
-        const startTime = captions[startWordIdx].start;
-        const endTime = captions[endWordIdx].end;
-        
+        const endWordIdx = Math.min(latestCaptions.length - 1, currentWordIdx - 1);
+        const startTime = latestCaptions[startWordIdx].start;
+        const endTime = latestCaptions[endWordIdx].end;
         alignedTimings.push({
           lineStart: seg.lineStart,
           lineEnd: seg.lineEnd,
@@ -257,16 +339,13 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
         });
       });
     } else {
-      // Fallback: No [sync: ...] comments. Distribute the code lines evenly across the audio transcription duration!
-      addLog("No [sync: ...] tags found in code. Automatically distributing line reveals across audio duration...");
+      addLog("[AUTO-PRODUCE] No comments found. Distributing line reveals evenly across audio duration...");
       const totalLines = cleanedCode.split("\n").length;
-      if (totalLines > 0 && captions.length > 0) {
-        const totalDurationSec = captions[captions.length - 1].end;
-        
+      if (totalLines > 0 && latestCaptions.length > 0) {
+        const totalDurationSec = latestCaptions[latestCaptions.length - 1].end;
         for (let i = 0; i < totalLines; i++) {
           const startTime = (i / totalLines) * totalDurationSec;
           const endTime = ((i + 1) / totalLines) * totalDurationSec;
-          
           alignedTimings.push({
             lineStart: i + 1,
             lineEnd: i + 1,
@@ -276,11 +355,10 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
         }
       }
     }
-    
+
     setLineTimings(alignedTimings);
-    addLog(`Aligned ${alignedTimings.length} code segments.`);
-    
-    // Register payload directly to local tutorials.json database!
+    addLog(`[AUTO-PRODUCE] Aligned ${alignedTimings.length} code segments.`);
+
     const payload = {
       id,
       seriesTitle,
@@ -300,45 +378,30 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       outroText,
       voiceName,
     };
-    
+
     try {
-      const res = await fetch("http://localhost:3005/api/save", {
+      const saveRes = await fetch("http://localhost:3005/api/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (data.success) {
-        addLog("Tutorial successfully saved to local database (public/data/tutorials.json)!");
-      } else {
-        addLog(`Save failed: ${data.error}`);
+      const saveData = await saveRes.json();
+      if (!saveData.success) {
+        addLog(`[AUTO-PRODUCE FAILED] Failed to save config: ${saveData.error}`);
+        setStatus("idle");
+        return;
       }
+      addLog("[AUTO-PRODUCE] Config and alignment successfully synchronized to database.");
     } catch {
-      addLog("Failed to contact Express save config service.");
+      addLog("[AUTO-PRODUCE FAILED] Failed to contact Express save config service.");
+      setStatus("idle");
+      return;
     }
-    setStatus("idle");
-  };
 
-  // D. Compile video to MP4 using Remotion headless renderer in local command-line
-  const handleRenderVideo = async () => {
-    setStatus("render");
-    addLog(`Initiating headless Remotion rendering for tutorial-${id}...`);
-    try {
-      const res = await fetch("http://localhost:3005/api/render", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        addLog(`[SUCCESS] Pure vertical 9:16 video rendered: public/output_${id}.mp4!`);
-      } else {
-        addLog(`[RENDER FAILED] Check logs: ${data.error}`);
-      }
-    } catch {
-      addLog("Failed to contact Express render compiler service.");
-    }
+    // 4. Launch Render Modal
     setStatus("idle");
+    addLog("[AUTO-PRODUCE] Step 4/4: Launching HD Video Render Manager...");
+    handleRenderVideo();
   };
 
   // E. Handle local Drag-and-Drop or direct BGM file upload
@@ -794,45 +857,39 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
               <button
                 type="button"
                 disabled={status !== "idle"}
-                onClick={handleGenerateTTS}
-                className="py-2 px-3.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] border border-[#CBD5E1] text-[#0F172A] font-bold rounded-lg flex items-center justify-start gap-3.5 text-xs uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                onClick={handleAutoProduceVideo}
+                className="py-3.5 px-4 bg-[#E0F2FE] hover:bg-[#BAE6FD] border-2 border-[#0284C7] text-[#0369A1] font-black rounded-xl flex items-center justify-center gap-3.5 text-xs uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-[#0284C7]/15"
               >
-                <span className="w-5 h-5 rounded-full bg-[#E2E8F0] text-slate-700 flex items-center justify-center font-bold text-[10px]">1</span>
-                <Volume2 size={13} className="text-[#38BDF8]" />
-                {status === "tts" ? "TTS active..." : "Generate Voiceover (TTS)"}
-              </button>
-              
-              <button
-                type="button"
-                disabled={status !== "idle"}
-                onClick={handleTranscribe}
-                className="py-2 px-3.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] border border-[#CBD5E1] text-[#0F172A] font-bold rounded-lg flex items-center justify-start gap-3.5 text-xs uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <span className="w-5 h-5 rounded-full bg-[#E2E8F0] text-slate-700 flex items-center justify-center font-bold text-[10px]">2</span>
-                <Mic size={13} className="text-[#38BDF8]" />
-                {status === "whisper" ? "Whispering..." : "Transcribe Word-Timestamps"}
-              </button>
-
-              <button
-                type="button"
-                disabled={status !== "idle" || captions.length === 0}
-                onClick={handleAlignAndSave}
-                className="py-2 px-3.5 bg-[#E0F2FE] hover:bg-[#BAE6FD] border border-[#0284C7] text-[#0369A1] font-bold rounded-lg flex items-center justify-start gap-3.5 text-xs uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <span className="w-5 h-5 rounded-full bg-[#0284C7] text-[#FFFFFF] flex items-center justify-center font-bold text-[10px]">3</span>
-                <Check size={13} className="text-[#0284C7]" />
-                {status === "save" ? "Aligning..." : "Sync Timings & Save Config"}
-              </button>
-
-              <button
-                type="button"
-                disabled={status !== "idle"}
-                onClick={handleRenderVideo}
-                className="py-2 px-3.5 bg-[#D1FAE5] hover:bg-[#A7F3D0] border border-[#059669] text-[#047857] font-black rounded-lg flex items-center justify-start gap-3.5 text-xs uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <span className="w-5 h-5 rounded-full bg-[#059669] text-[#FFFFFF] flex items-center justify-center font-black text-[10px]">4</span>
-                <PlayCircle size={13} className="text-[#059669]" />
-                {status === "render" ? "Compiling..." : "Render Final MP4 Video"}
+                {status === "tts" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full border-2 border-[#0369A1] border-t-transparent animate-spin" />
+                    Step 1/4: Generating TTS Voiceover...
+                  </span>
+                )}
+                {status === "whisper" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full border-2 border-[#0369A1] border-t-transparent animate-spin" />
+                    Step 2/4: Whispering Timestamps...
+                  </span>
+                )}
+                {status === "save" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full border-2 border-[#0369A1] border-t-transparent animate-spin" />
+                    Step 3/4: Syncing Timing & Saving...
+                  </span>
+                )}
+                {status === "render" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full border-2 border-[#0369A1] border-t-transparent animate-spin" />
+                    Step 4/4: Launching HD Renderer...
+                  </span>
+                )}
+                {status === "idle" && (
+                  <span className="flex items-center gap-2">
+                    <PlayCircle size={16} className="text-[#0284C7]" />
+                    Auto-Produce Final Video (TTS ➜ Whisper ➜ Sync ➜ Render)
+                  </span>
+                )}
               </button>
             </div>
 
@@ -907,6 +964,183 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
           <span>30.0s (900f)</span>
         </div>
       </div>
+
+      {/* 4. Glassmorphic Rendering Settings Modal */}
+      {showRenderModal && (
+        <div className="fixed inset-0 bg-[#0B0F19]/80 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-[#FFFFFF]/90 border border-slate-200/80 rounded-2xl w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col font-sans backdrop-filter">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#059669] animate-pulse" />
+                <span className="font-mono text-xs font-bold text-slate-500 uppercase tracking-widest">Remotion Engine v4.0</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (renderStep !== "rendering") setShowRenderModal(false);
+                }}
+                disabled={renderStep === "rendering"}
+                className="text-slate-400 hover:text-slate-600 font-bold transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 flex-1 flex flex-col gap-6">
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Render Output Configuration</h3>
+                <p className="text-xs text-slate-500 mt-1 font-medium">Configure advanced high-definition settings for your vertical TikTok/Shorts MP4 compilation.</p>
+              </div>
+
+              {renderStep === "idle" && (
+                <div className="flex flex-col gap-4">
+                  {/* Resolution Input */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Target Resolution Preset</label>
+                    <select
+                      value={renderResolution}
+                      onChange={(e) => setRenderResolution(e.target.value)}
+                      className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
+                    >
+                      <option value="1080x1920">1080 x 1920 (Standard HD 9:16 - TikTok/Shorts)</option>
+                      <option value="720x1280">720 x 1280 (SD 9:16 - Fast Draft)</option>
+                    </select>
+                  </div>
+
+                  {/* FPS Input */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Target Frame Rate (FPS)</label>
+                    <select
+                      value={renderFps}
+                      onChange={(e) => setRenderFps(e.target.value)}
+                      className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
+                    >
+                      <option value="30">30 Frames Per Second (Web Standard)</option>
+                      <option value="60">60 Frames Per Second (Ultra Smooth)</option>
+                    </select>
+                  </div>
+
+                  {/* Video Codec */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Video Codec & Format</label>
+                    <select
+                      value={renderCodec}
+                      onChange={(e) => setRenderCodec(e.target.value)}
+                      className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
+                    >
+                      <option value="h264">MP4 H.264 (Universally Compatible)</option>
+                      <option value="vp8">WebM VP8 (Web Native)</option>
+                    </select>
+                  </div>
+
+                  {/* Confirm Button */}
+                  <button
+                    type="button"
+                    onClick={handleStartRender}
+                    className="mt-4 w-full py-3 bg-[#059669] hover:bg-[#047857] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-[#059669]/20 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider text-xs"
+                  >
+                    Confirm & Start Headless Render
+                  </button>
+                </div>
+              )}
+
+              {renderStep === "rendering" && (
+                <div className="flex flex-col items-center justify-center py-6 gap-6">
+                  {/* Spinning Ring */}
+                  <div className="relative w-20 h-20 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full border-4 border-slate-100" />
+                    <div className="absolute inset-0 rounded-full border-4 border-[#059669] border-t-transparent animate-spin" />
+                    <span className="font-mono text-sm font-bold text-slate-800">{renderProgress}%</span>
+                  </div>
+
+                  <div className="text-center">
+                    <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">Rendering in Progress</h4>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm font-medium">Vite & Remotion are compiling your video frame-by-frame. Please do not close the dashboard.</p>
+                  </div>
+
+                  {/* Progress Bar Container */}
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      style={{ width: `${renderProgress}%` }}
+                      className="bg-[#059669] h-full rounded-full transition-all duration-300 shadow-[0_0_8px_#34D399]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {renderStep === "success" && (
+                <div className="flex flex-col items-center justify-center py-6 gap-6">
+                  {/* Big Green Tick */}
+                  <div className="w-16 h-16 rounded-full bg-[#D1FAE5] border-2 border-[#059669] flex items-center justify-center text-[#059669] text-3xl font-extrabold animate-bounce">
+                    ✓
+                  </div>
+
+                  <div className="text-center">
+                    <h4 className="text-base font-extrabold text-slate-900 uppercase tracking-wider">Compilation Completed!</h4>
+                    <p className="text-xs text-slate-600 mt-2 font-mono bg-slate-50 border border-slate-150 px-3 py-1.5 rounded-lg inline-block">
+                      public/output_{id}.mp4
+                    </p>
+                  </div>
+
+                  {/* Actions Grid */}
+                  <div className="grid grid-cols-2 gap-3 w-full mt-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenFolder}
+                      className="py-2.5 px-4 bg-[#E0F2FE] hover:bg-[#BAE6FD] border border-[#0284C7] text-[#0369A1] font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      Show in Explorer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowRenderModal(false)}
+                      className="py-2.5 px-4 bg-[#F1F5F9] hover:bg-[#E2E8F0] border border-[#CBD5E1] text-[#0F172A] font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {renderStep === "failed" && (
+                <div className="flex flex-col items-center justify-center py-6 gap-6">
+                  {/* Big Red Cross */}
+                  <div className="w-16 h-16 rounded-full bg-red-50 border-2 border-red-500 flex items-center justify-center text-red-500 text-3xl font-extrabold">
+                    ✕
+                  </div>
+
+                  <div className="text-center">
+                    <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider text-red-600 font-bold">Compilation Failed</h4>
+                    <p className="text-xs text-red-500 mt-1 max-w-sm font-mono p-3 bg-red-50 rounded-lg border border-red-100 overflow-x-auto text-left">
+                      {renderError || "Unknown execution error."}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-3 w-full mt-2">
+                    <button
+                      type="button"
+                      onClick={handleStartRender}
+                      className="py-2.5 px-4 bg-[#EF4444] hover:bg-red-600 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer"
+                    >
+                      Try Again
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowRenderModal(false)}
+                      className="py-2.5 px-4 bg-[#F1F5F9] hover:bg-[#E2E8F0] border border-[#CBD5E1] text-[#0F172A] font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

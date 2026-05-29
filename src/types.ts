@@ -37,6 +37,7 @@ export const calculateAnimationDuration = (params: {
   beforeCodeSnippet?: string;
   beforeDurationMs?: number;
   lineIntervalMs?: number;
+  captions?: WordCaption[];
 }): number => {
   const {
     videoSetup = "standard",
@@ -44,6 +45,7 @@ export const calculateAnimationDuration = (params: {
     beforeCodeSnippet = "",
     beforeDurationMs = 3000,
     lineIntervalMs,
+    captions = [],
   } = params;
 
   const rawLines = codeSnippet.split("\n");
@@ -100,7 +102,15 @@ export const calculateAnimationDuration = (params: {
     codeRevealDoneFrame = maxDoneFrame;
   }
 
-  // 2s completed stay (60 frames) + 2s outro CTA (60 frames)
-  const totalDuration = codeRevealDoneFrame + 60 + 60;
+  // Calculate audio narration duration in frames (delayed by introFrames in before_after mode)
+  const audioDurationSec = captions.length > 0 ? captions[captions.length - 1].end : 0;
+  const audioDurationFrames = Math.ceil(audioDurationSec * 30);
+  const audioDoneFrame = introFrames + audioDurationFrames;
+
+  // Outro CTA appears at least 2s (60 frames) after code typing ends, AND after narration ends
+  const outroCtaStartFrame = Math.max(codeRevealDoneFrame + 60, audioDoneFrame);
+
+  // Video runs for exactly 2 seconds (60 frames) after the Outro CTA starts
+  const totalDuration = outroCtaStartFrame + 60;
   return Math.ceil(totalDuration);
 };

@@ -25,7 +25,11 @@ export const Subtitles: React.FC<SubtitlesProps> = ({
         const response = await fetch(staticFile(captionFile));
         const data = await response.json();
         if (active) {
-          setCaptions(data);
+          const processed = data.map((w: WordCaption) => ({
+            ...w,
+            end: Math.max(w.start, w.end - 0.002),
+          }));
+          setCaptions(processed);
           continueRender(handle);
         }
       } catch (err) {
@@ -76,9 +80,9 @@ export const Subtitles: React.FC<SubtitlesProps> = ({
   const visibleWords = captions.slice(startIdx, endIdx);
 
   return (
-    <div className="w-full h-[576px] flex flex-col justify-center items-center p-12 bg-[#0B0F19] border-t-4 border-[#334155] box-border select-none relative">
+    <div className="w-full h-[576px] flex flex-col justify-center items-center p-12 bg-[#050B08] border-t-4 border-emerald-950/70 box-border select-none relative">
       {/* Subtitle Zone Boundary Decorator */}
-      <span className="absolute top-4 left-6 text-xs font-mono text-[#475569] tracking-widest uppercase">
+      <span className="absolute top-4 left-6 text-xs font-mono text-emerald-600/60 tracking-widest uppercase">
         Live Caption Engine
       </span>
 
@@ -93,8 +97,8 @@ export const Subtitles: React.FC<SubtitlesProps> = ({
               key={absoluteIdx}
               className={`text-4xl transition-all duration-150 transform tracking-wide ${
                 isActive
-                  ? "scale-115 text-[#EAB308] font-black border-b-4 border-[#EAB308] pb-1 px-1"
-                  : "text-white opacity-40 font-medium"
+                  ? "scale-115 text-[#34D399] font-black border-b-4 border-[#34D399] pb-1 px-1 shadow-[0_4px_12px_rgba(52,211,153,0.15)]"
+                  : "text-white opacity-30 font-medium"
               }`}
             >
               {wordObj.word}

@@ -2,7 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
+
+// Track rendering progress in real-time
+const activeRenders = {};
 
 const app = express();
 app.use(cors());
@@ -101,22 +104,102 @@ app.post('/api/transcribe', (req, res) => {
   });
 });
 
-// 5. POST /api/render - triggers remotion headless video render
+// 5. POST /api/render - triggers background remotion headless video render with progress tracking
 app.post('/api/render', (req, res) => {
   const { id } = req.body;
-  
-  const renderScript = path.join(__dirname, 'render.ps1');
-  const cmd = `powershell "${renderScript}" -Id "${id}"`;
-  
-  console.log(`[*] Running Render command: ${cmd}`);
-  exec(cmd, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`[-] Render error: ${error.message}`);
-      return res.status(500).json({ error: error.message, stderr });
-    }
-    console.log(`[+] Render success: ${stdout}`);
-    res.json({ success: true, message: `Successfully compiled video public/output_${id}.mp4`, stdout });
+  const outputPath = path.resolve(__dirname, '..', 'public', `output_${id}.mp4`);
+
+  if (activeRenders[id] && activeRenders[id].status === 'rendering') {
+    return res.json({ success: true, message: "Render already in progress", id, progress: activeRenders[id].progress });
+  }
+
+  activeRenders[id] = {
+    progress: 0,
+    status: 'rendering',
+    outputPath,
+    error: null
+  };
+
+  const compositionId = `tutorial-${id}`;
+  const relativeOutputPath = `public/output_${id}.mp4`;
+  console.log(`[*] Starting background Remotion render for composition: ${compositionId}`);
+
+  // Spawn npx remotion render in the workspace root directory
+  const child = spawn('npx', ['remotion', 'render', compositionId, relativeOutputPath], {
+    shell: true,
+    cwd: path.join(__dirname, '..')
   });
+
+  child.stdout.on('data', (data) => {
+    const output = data.toString();
+    console.log(`[Remotion ${id}]: ${output.trim()}`);
+    
+    // Ignore bundler percentage outputs to prevent false-positive early 100% states
+    if (output.includes('Bundling')) {
+      return;
+    }
+    
+    // Parse progress percentage e.g. "35%" or frame ratio e.g. "46/758"
+    const pctMatch = output.match(/(\d+)%/);
+    if (pctMatch) {
+      const prg = parseInt(pctMatch[1], 10);
+      activeRenders[id].progress = Math.max(activeRenders[id].progress, prg);
+    } else {
+      const frameMatch = output.match(/(\d+)\s*\/\s*(\d+)/);
+      if (frameMatch) {
+        const current = parseInt(frameMatch[1], 10);
+        const total = parseInt(frameMatch[2], 10);
+        if (total > 0) {
+          const pct = Math.round((current / total) * 100);
+          activeRenders[id].progress = Math.min(100, Math.max(activeRenders[id].progress, pct));
+        }
+      }
+    }
+  });
+
+  child.stderr.on('data', (data) => {
+    console.error(`[Remotion ${id} Error]: ${data.toString().trim()}`);
+  });
+
+  child.on('close', (code) => {
+    if (code === 0) {
+      console.log(`[+] Render completed successfully: public/output_${id}.mp4`);
+      activeRenders[id].status = 'success';
+      activeRenders[id].progress = 100;
+    } else {
+      console.error(`[-] Remotion process exited with error code ${code}`);
+      activeRenders[id].status = 'failed';
+      activeRenders[id].error = `Headless process exited with code ${code}`;
+    }
+  });
+
+  res.json({ success: true, message: "Render started in background", id });
+});
+
+// 5b. GET /api/render/status/:id - polls active render progress
+app.get('/api/render/status/:id', (req, res) => {
+  const { id } = req.params;
+  const render = activeRenders[id];
+  if (!render) {
+    return res.status(404).json({ error: "No active rendering found" });
+  }
+  res.json(render);
+});
+
+// 5c. POST /api/open-folder - highlights the rendered video in Windows Explorer
+app.post('/api/open-folder', (req, res) => {
+  const { id } = req.body;
+  const outputPath = path.resolve(__dirname, '..', 'public', `output_${id}.mp4`);
+
+  if (fs.existsSync(outputPath)) {
+    // explorer /select highlights the exact output file
+    const cmd = `explorer.exe /select,"${outputPath}"`;
+    console.log(`[*] Executing: ${cmd}`);
+    exec(cmd);
+    res.json({ success: true, message: "Folder opened" });
+  } else {
+    res.status(404).json({ error: `File not found at ${outputPath}` });
+  }
 });
 
 // 6. POST /api/upload - uploads assets (e.g. bgm audio files) directly as base64

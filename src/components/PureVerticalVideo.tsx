@@ -76,11 +76,11 @@ export const PureVerticalVideo: React.FC<TutorialData> = ({
 
       {/* 3. Caption Subtitle Zone: Bottom 30% (576px) */}
       {videoSetup === "before_after" && frame < introFrames ? (
-        <div className="w-full h-[576px] flex flex-col justify-center items-center p-12 bg-[#0B0F19] border-t-4 border-[#334155] box-border select-none relative">
-          <span className="absolute top-4 left-6 text-xs font-mono text-[#475569] tracking-widest uppercase">
+        <div className="w-full h-[576px] flex flex-col justify-center items-center p-12 bg-[#050B08] border-t-4 border-emerald-950/70 box-border select-none relative">
+          <span className="absolute top-4 left-6 text-xs font-mono text-emerald-600/60 tracking-widest uppercase">
             Live Caption Engine
           </span>
-          <span className="text-[#475569] font-mono tracking-widest text-lg animate-pulse uppercase">
+          <span className="text-emerald-600/80 font-mono tracking-widest text-lg font-bold animate-pulse uppercase">
             Analyzing bugged code...
           </span>
         </div>

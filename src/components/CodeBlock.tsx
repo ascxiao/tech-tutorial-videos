@@ -299,7 +299,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
   const bannerOpacity = 1 - ease;
 
   return (
-    <div className="w-full h-[1056px] bg-[#1E293B] border-4 border-[#334155] p-10 flex flex-col justify-start overflow-hidden box-border relative">
+    <div className="w-full h-[1056px] bg-[#050B08] border-4 border-emerald-950/60 p-10 flex flex-col justify-start overflow-hidden box-border relative">
       
       {/* Spot the Bug Countdown Overlay - Dynamic backdrop tint and blur fade-out */}
       {videoSetup === "before_after" && currentFrame < introFrames && (
@@ -321,14 +321,14 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
               height: `${circleSize}px`,
               borderWidth: `${circleBorder}px`,
             }}
-            className="absolute rounded-full border-[#38BDF8] bg-[#0B0F19]/90 flex items-center justify-center animate-pulse shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all duration-75"
+            className="absolute rounded-full border-emerald-400 bg-[#050B08]/90 flex items-center justify-center animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all duration-75"
           >
             <span className={`text-white font-black font-mono ${circleTextSize} transition-all duration-100`}>
               {remainingSeconds}
             </span>
             {ease < 0.85 && (
               <div 
-                className="absolute inset-[-8px] rounded-full border-8 border-transparent border-t-[#EAB308] animate-spin" 
+                className="absolute inset-[-8px] rounded-full border-8 border-transparent border-t-emerald-400 animate-spin" 
                 style={{ 
                   animationDuration: "3s",
                   borderWidth: `${circleBorder}px`
@@ -346,7 +346,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
               opacity: bannerOpacity,
               pointerEvents: bannerOpacity > 0.1 ? "auto" : "none",
             }}
-            className="absolute bg-[#EAB308] text-[#0B0F19] px-7 py-3.5 rounded-lg border-4 border-[#0B0F19] shadow-[0_6px_0px_#38BDF8] shrink-0 transition-all duration-75"
+            className="absolute bg-[#0D2418] text-emerald-400 px-7 py-3.5 rounded-lg border-4 border-emerald-500 shadow-[0_6px_0px_#059669] shrink-0 transition-all duration-75"
           >
             <h3 className="text-2xl font-black tracking-wider uppercase font-sans text-center leading-none whitespace-nowrap">
               {challengeText}
@@ -389,7 +389,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
                 isSuccess
                   ? "bg-[#10B981]/10 border-[#10B981] text-[#D1FAE5]"
                   : isActive
-                  ? "bg-[#0B0F19] border-[#EAB308] text-[#FFFFFF]"
+                  ? "bg-[#0B1A14] border-emerald-500 text-[#FFFFFF]"
                   : "border-transparent opacity-35 text-[#94A3B8]"
               }`}
             >
@@ -397,7 +397,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
                 isSuccess
                   ? "text-[#10B981]"
                   : isActive
-                  ? "text-[#EAB308]"
+                  ? "text-[#34D399]"
                   : "text-[#475569]"
               }`}>
                 {idx + 1}
@@ -419,7 +419,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
                   })
                 )}
                 {isTyping && (
-                  <span className="animate-pulse text-[#EAB308] font-bold">|</span>
+                  <span className="animate-pulse text-emerald-400 font-bold">|</span>
                 )}
               </div>
             </div>
@@ -582,11 +582,10 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
 
       </div>
 
-      {/* Dynamic Outro Text Overlay - Renders beautifully in the center at the end of the video */}
       {currentFrame >= narrationDoneFrame && (
-        <div className="absolute inset-0 z-30 bg-[#0B0F19]/70 backdrop-blur-[6px] flex items-center justify-center p-10 select-none transition-all duration-300">
-          <div className="bg-[#0B0F19]/95 border-4 border-[#38BDF8] px-10 py-8 rounded-xl shadow-[0_0_40px_rgba(56,189,248,0.25)] flex flex-col items-center justify-center text-center max-w-[90%] transition-all duration-300 animate-fade-in">
-            <p className="text-xl font-bold font-mono text-[#38BDF8] tracking-wide animate-pulse">
+        <div className="absolute inset-0 z-30 bg-[#050B08]/75 backdrop-blur-[6px] flex items-center justify-center p-10 select-none transition-all duration-300">
+          <div className="bg-[#050B08]/95 border-4 border-emerald-500 px-10 py-8 rounded-xl shadow-[0_0_40px_rgba(16,185,129,0.25)] flex flex-col items-center justify-center text-center max-w-[90%] transition-all duration-300 animate-fade-in">
+            <p className="text-xl font-bold font-mono text-emerald-400 tracking-wide animate-pulse">
               {outroText}
             </p>
           </div>

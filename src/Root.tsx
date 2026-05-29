@@ -1,9 +1,9 @@
 import React from "react";
-import { Composition } from "remotion";
+import { Composition, staticFile } from "remotion";
 import { z } from "zod";
 import { zTextarea } from "@remotion/zod-types";
 import { PureVerticalVideo } from "./components/PureVerticalVideo";
-import { TutorialData, calculateAnimationDuration } from "./types";
+import { TutorialData, calculateAnimationDuration, WordCaption } from "./types";
 import "./index.css";
 
 // Import dynamic video configurations from public warehouse
@@ -73,12 +73,32 @@ export const RemotionRoot: React.FC = () => {
             defaultProps={resolvedProps}
             calculateMetadata={async ({ props }) => {
               try {
+                let captions: WordCaption[] = [];
+                if (props.captionFile) {
+                  try {
+                    if (typeof window !== "undefined" && typeof window.fetch === "function") {
+                      const res = await window.fetch(staticFile(props.captionFile));
+                      captions = await res.json();
+                    } else {
+                      const fs = eval("require")("fs");
+                      const path = eval("require")("path");
+                      const fullPath = path.join(process.cwd(), "public", props.captionFile);
+                      if (fs.existsSync(fullPath)) {
+                        captions = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
+                      }
+                    }
+                  } catch (e) {
+                    console.warn("Could not dynamically load captions in calculateMetadata:", e);
+                  }
+                }
+
                 const computedFrames = calculateAnimationDuration({
                   videoSetup: props.videoSetup,
                   codeSnippet: props.codeSnippet,
                   beforeCodeSnippet: props.beforeCodeSnippet,
                   beforeDurationMs: props.beforeDurationMs,
                   lineIntervalMs: props.lineIntervalMs,
+                  captions,
                 });
                 
                 return {
