@@ -7,22 +7,33 @@
   "private": true,
   "dependencies": {
     "@remotion/cli": "4.0.468",
+    "@remotion/media-utils": "^4.0.468",
+    "@remotion/player": "^4.0.468",
+    "@remotion/tailwind-v4": "4.0.468",
+    "@remotion/zod-types": "^4.0.468",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "lucide-react": "^1.17.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "remotion": "4.0.468",
-    "@remotion/tailwind-v4": "4.0.468",
-    "tailwindcss": "4.0.0"
+    "shiki": "^4.1.0",
+    "tailwindcss": "4.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@remotion/eslint-config-flat": "4.0.468",
+    "@tailwindcss/vite": "^4.3.0",
     "@types/react": "19.2.7",
     "@types/web": "0.0.166",
+    "@vitejs/plugin-react": "^6.0.2",
     "eslint": "9.19.0",
     "prettier": "3.8.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vite": "^8.0.14"
   },
   "scripts": {
-    "dev": "remotion studio",
+    "dev": "node scripts/dev.js",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"

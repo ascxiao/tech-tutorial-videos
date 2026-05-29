@@ -9,7 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noUnusedLocals": true
+    "noUnusedLocals": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node"
   },
-  "exclude": ["remotion.config.ts"]
+  "exclude": ["remotion.config.ts", "vite.config.ts"]
 }

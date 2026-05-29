@@ -1,0 +1,159 @@
+[
+  {
+    "id": "001",
+    "seriesTitle": "NEXT.JS 15 COOKIES FIX",
+    "audioFile": "/public/audio/001.mp3",
+    "captionFile": "/public/data/001_captions.json",
+    "codeSnippet": "interface User {\n  id: number;\n  name: string;\n  email: string;\n}\n\nfunction fetchUser(id: number): unknown {\n  return null; \n}\n\nfunction displayUserProfile(userId: number) {\n  const data = fetchUser(userId);\n\n  if (data && typeof data === 'object' && 'name' in data && 'email' in data) {\n    const user = data as User; \n    console.log(`Welcome back, ${user.name.toUpperCase()}!`);\n    return;\n  }\n\n  console.log(\"Welcome, Guest! Please complete your profile.\");\n}\n\ndisplayUserProfile(101);",
+    "language": "typescript",
+    "lineTimings": [
+      {
+        "lineStart": 1,
+        "lineEnd": 1,
+        "startFrame": 0,
+        "endFrame": 34
+      },
+      {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "startFrame": 34,
+        "endFrame": 68
+      },
+      {
+        "lineStart": 3,
+        "lineEnd": 3,
+        "startFrame": 68,
+        "endFrame": 103
+      },
+      {
+        "lineStart": 4,
+        "lineEnd": 4,
+        "startFrame": 103,
+        "endFrame": 137
+      },
+      {
+        "lineStart": 5,
+        "lineEnd": 5,
+        "startFrame": 137,
+        "endFrame": 172
+      },
+      {
+        "lineStart": 6,
+        "lineEnd": 6,
+        "startFrame": 172,
+        "endFrame": 206
+      },
+      {
+        "lineStart": 7,
+        "lineEnd": 7,
+        "startFrame": 206,
+        "endFrame": 241
+      },
+      {
+        "lineStart": 8,
+        "lineEnd": 8,
+        "startFrame": 241,
+        "endFrame": 275
+      },
+      {
+        "lineStart": 9,
+        "lineEnd": 9,
+        "startFrame": 275,
+        "endFrame": 309
+      },
+      {
+        "lineStart": 10,
+        "lineEnd": 10,
+        "startFrame": 309,
+        "endFrame": 344
+      },
+      {
+        "lineStart": 11,
+        "lineEnd": 11,
+        "startFrame": 344,
+        "endFrame": 378
+      },
+      {
+        "lineStart": 12,
+        "lineEnd": 12,
+        "startFrame": 378,
+        "endFrame": 413
+      },
+      {
+        "lineStart": 13,
+        "lineEnd": 13,
+        "startFrame": 413,
+        "endFrame": 447
+      },
+      {
+        "lineStart": 14,
+        "lineEnd": 14,
+        "startFrame": 447,
+        "endFrame": 482
+      },
+      {
+        "lineStart": 15,
+        "lineEnd": 15,
+        "startFrame": 482,
+        "endFrame": 516
+      },
+      {
+        "lineStart": 16,
+        "lineEnd": 16,
+        "startFrame": 516,
+        "endFrame": 550
+      },
+      {
+        "lineStart": 17,
+        "lineEnd": 17,
+        "startFrame": 550,
+        "endFrame": 585
+      },
+      {
+        "lineStart": 18,
+        "lineEnd": 18,
+        "startFrame": 585,
+        "endFrame": 619
+      },
+      {
+        "lineStart": 19,
+        "lineEnd": 19,
+        "startFrame": 619,
+        "endFrame": 654
+      },
+      {
+        "lineStart": 20,
+        "lineEnd": 20,
+        "startFrame": 654,
+        "endFrame": 688
+      },
+      {
+        "lineStart": 21,
+        "lineEnd": 21,
+        "startFrame": 688,
+        "endFrame": 723
+      },
+      {
+        "lineStart": 22,
+        "lineEnd": 22,
+        "startFrame": 723,
+        "endFrame": 757
+      },
+      {
+        "lineStart": 23,
+        "lineEnd": 23,
+        "startFrame": 757,
+        "endFrame": 792
+      }
+    ],
+    "videoSetup": "before_after",
+    "beforeCodeSnippet": "interface User {\n  id: number;\n  name: string;\n  email: string;\n}\n\nfunction fetchUser(id: number): any {\n  return null; \n}\n\nfunction displayUserProfile(userId: number) {\n  const user = fetchUser(userId) as User;\n  console.log(`Welcome back, ${user.name.toUpperCase()}!`);\n  console.log(`Email: ${user.email}`);\n}\n\ndisplayUserProfile(101);",
+    "beforeDurationMs": 5000,
+    "lineIntervalMs": 1500,
+    "channelName": "@TechQuickies",
+    "challengeText": "How will you debug this?",
+    "narrationText": "The original code crashed at runtime because it blindly trusted the API by using a type assertion, resulting in a TypeError when trying to read properties from a null value. This was fixed by switching the return type to unknown to acknowledge the unpredictable nature of external data, followed by a type guard that verifies the object structure before accessing its properties. If the data validation fails, the code now safely switches to a fallback guest message instead of throwing an error.",
+    "outroText": "Follow for more quick challenges!",
+    "voiceName": "en-US-GuyNeural"
+  }
+]

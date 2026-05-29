@@ -1,1 +1,56 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+@import url('https://fonts.cdnfonts.com/css/galyon');
+
+@theme {
+  --font-sans: 'Galyon', 'Inter', system-ui, -apple-system, sans-serif;
+  --color-bg-dark: #F8FAFC; /* Slate-50 super clean light gray background */
+  --color-bg-card: #FFFFFF; /* Pure white container cards */
+  --color-accent-yellow: #EAB308; /* Premium active yellow indicator */
+}
+
+body {
+  background-color: #F8FAFC;
+  font-family: 'Galyon', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color: #0F172A; /* Rich deep slate text for perfect light mode contrast */
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ZERO GRADIENTS RULE - STRICT FLAT COLOR DESIGN ACCENTS */
+* {
+  background-image: none !important;
+  background-clip: border-box !important;
+}
+
+/* Flat design utilities */
+.flat-border {
+  border: 2px solid #E2E8F0;
+}
+
+.flat-shadow {
+  box-shadow: 4px 4px 0px 0px #CBD5E1;
+}
+
+.flat-accent-border {
+  border-left: 6px solid #EAB308;
+}
+
+/* Style for Code Block lines */
+.code-line {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding-left: 8px;
+  border-left: 4px solid transparent;
+  transition: all 0.15s ease-in-out;
+}
+
+.code-line.active {
+  background-color: #FEF08A; /* Gentle light yellow-200 highlights in light mode */
+  border-left-color: #EAB308;
+}
+
+.code-line.dimmed {
+  opacity: 0.35;
+}
