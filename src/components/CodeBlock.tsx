@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useDelayRender } from "remotion";
+import { useDelayRender, staticFile } from "remotion";
 import { createHighlighter } from "shiki";
-import { LineTiming } from "../types";
+import { LineTiming, WordCaption } from "../types";
 
 interface CodeBlockProps {
   codeSnippet: string;
@@ -15,6 +15,7 @@ interface CodeBlockProps {
   lineIntervalMs?: number;
   challengeText?: string;
   outroText?: string;
+  captionFile: string;
 }
 
 interface ShikiToken {
@@ -73,11 +74,33 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
   lineIntervalMs,
   challengeText = "How will you debug this?",
   outroText = "Follow for more quick challenges!",
+  captionFile,
 }) => {
   const [tokens, setTokens] = useState<ShikiToken[][]>([]);
   const [beforeTokens, setBeforeTokens] = useState<ShikiToken[][]>([]);
+  const [captions, setCaptions] = useState<WordCaption[]>([]);
   const { delayRender, continueRender } = useDelayRender();
   const [handle] = useState(() => delayRender("Loading Shiki syntax highlighter..."));
+
+  useEffect(() => {
+    let active = true;
+    async function loadCaptions() {
+      if (!captionFile) return;
+      try {
+        const response = await fetch(staticFile(captionFile));
+        const data = await response.json();
+        if (active) {
+          setCaptions(data);
+        }
+      } catch (err) {
+        console.error("Failed to load caption file in CodeBlock:", err);
+      }
+    }
+    loadCaptions();
+    return () => {
+      active = false;
+    };
+  }, [captionFile]);
 
   useEffect(() => {
     let active = true;
@@ -195,8 +218,13 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
     codeRevealDoneFrame = maxDoneFrame;
   }
 
-  // The Outro CTA appears exactly 2 seconds (60 frames) after the reveal finishes
-  const narrationDoneFrame = codeRevealDoneFrame + 60;
+  // Calculate audio narration duration in frames (delayed by introFrames in before_after mode)
+  const audioDurationSec = captions.length > 0 ? captions[captions.length - 1].end : 0;
+  const audioDurationFrames = Math.ceil(audioDurationSec * 30);
+  const audioDoneFrame = introFrames + audioDurationFrames;
+
+  // Outro CTA appears exactly when the narration is done AND at least 2 seconds (60 frames) after typing reveal finishes!
+  const outroCtaStartFrame = Math.max(codeRevealDoneFrame + 60, audioDoneFrame);
 
   // Dynamic Success state for standard videos: turning all lines green when all are revealed
   const standardSuccessFrame = codeRevealDoneFrame + 15; // 0.5s pause after standard typing finishes
@@ -582,7 +610,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
 
       </div>
 
-      {currentFrame >= narrationDoneFrame && (
+      {currentFrame >= outroCtaStartFrame && (
         <div className="absolute inset-0 z-30 bg-[#050B08]/75 backdrop-blur-[6px] flex items-center justify-center p-10 select-none transition-all duration-300">
           <div className="bg-[#050B08]/95 border-4 border-emerald-500 px-10 py-8 rounded-xl shadow-[0_0_40px_rgba(16,185,129,0.25)] flex flex-col items-center justify-center text-center max-w-[90%] transition-all duration-300 animate-fade-in">
             <p className="text-xl font-bold font-mono text-emerald-400 tracking-wide animate-pulse">

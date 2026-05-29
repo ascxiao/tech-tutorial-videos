@@ -72,6 +72,7 @@ export const PureVerticalVideo: React.FC<TutorialData> = ({
         lineIntervalMs={lineIntervalMs}
         challengeText={challengeText}
         outroText={outroText}
+        captionFile={captionFile}
       />
 
       {/* 3. Caption Subtitle Zone: Bottom 30% (576px) */}
