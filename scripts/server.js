@@ -4,6 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const { exec, spawn } = require('child_process');
 
+const isPackaged = __dirname.includes('app.asar');
+const projectRoot = isPackaged 
+  ? path.resolve(process.cwd(), '..', '..') 
+  : path.resolve(__dirname, '..');
+
+console.log(`[*] Standalone Suite active. Physical workspace root: ${projectRoot}`);
+
 // Track rendering progress in real-time
 const activeRenders = {};
 
@@ -11,10 +18,11 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/public', express.static(path.join(projectRoot, 'public')));
 
 // 1. GET /api/bgm - lists background music files in public/audio
 app.get('/api/bgm', (req, res) => {
-  const audioDir = path.join(__dirname, '..', 'public', 'audio');
+  const audioDir = path.join(projectRoot, 'public', 'audio');
   if (!fs.existsSync(audioDir)) {
     return res.json([]);
   }
@@ -34,7 +42,7 @@ app.get('/api/bgm', (req, res) => {
 // 2. POST /api/save - saves tutorial metadata directly to tutorials.json
 app.post('/api/save', (req, res) => {
   const tutorial = req.body;
-  const tutorialsPath = path.join(__dirname, '..', 'public', 'data', 'tutorials.json');
+  const tutorialsPath = path.join(projectRoot, 'public', 'data', 'tutorials.json');
   
   let tutorials = [];
   if (fs.existsSync(tutorialsPath)) {
@@ -59,10 +67,10 @@ app.post('/api/save', (req, res) => {
 // 3. POST /api/tts - generates voiceover audio via Python neural TTS
 app.post('/api/tts', (req, res) => {
   const { text, id, voiceName = "en-US-GuyNeural" } = req.body;
-  const audioPath = path.join(__dirname, '..', 'public', 'audio', `${id}.mp3`);
+  const audioPath = path.join(projectRoot, 'public', 'audio', `${id}.mp3`);
   
   // Call tts.py using python command
-  const ttsScript = path.join(__dirname, 'tts.py');
+  const ttsScript = path.join(projectRoot, 'scripts', 'tts.py');
   
   // Clean double quotes from speech text to prevent shell injection/breakage
   const cleanText = text.replace(/"/g, "'").replace(/\n/g, " ");
@@ -82,10 +90,10 @@ app.post('/api/tts', (req, res) => {
 // 4. POST /api/transcribe - transcribes the audio using faster-whisper
 app.post('/api/transcribe', (req, res) => {
   const { id } = req.body;
-  const audioPath = path.join(__dirname, '..', 'public', 'audio', `${id}.mp3`);
-  const captionsPath = path.join(__dirname, '..', 'public', 'data', `${id}_captions.json`);
+  const audioPath = path.join(projectRoot, 'public', 'audio', `${id}.mp3`);
+  const captionsPath = path.join(projectRoot, 'public', 'data', `${id}_captions.json`);
   
-  const transcribeScript = path.join(__dirname, 'transcribe.py');
+  const transcribeScript = path.join(projectRoot, 'scripts', 'transcribe.py');
   const cmd = `python "${transcribeScript}" "${audioPath}" "${captionsPath}"`;
   
   console.log(`[*] Running Transcribe command: ${cmd}`);
@@ -109,11 +117,11 @@ app.post('/api/transcribe', (req, res) => {
 function getIncrementedOutputPath(id) {
   let index = 0;
   let filename = `output_${id}.mp4`;
-  let fullPath = path.resolve(__dirname, '..', 'public', filename);
+  let fullPath = path.resolve(projectRoot, 'public', filename);
   while (fs.existsSync(fullPath)) {
     index++;
     filename = `output_${id}_${index}.mp4`;
-    fullPath = path.resolve(__dirname, '..', 'public', filename);
+    fullPath = path.resolve(projectRoot, 'public', filename);
   }
   return { filename, fullPath };
 }
@@ -142,7 +150,7 @@ app.post('/api/render', (req, res) => {
   // Spawn npx remotion render in the workspace root directory
   const child = spawn('npx', ['remotion', 'render', compositionId, relativeOutputPath], {
     shell: true,
-    cwd: path.join(__dirname, '..')
+    cwd: projectRoot
   });
 
   child.stdout.on('data', (data) => {
@@ -204,7 +212,7 @@ app.get('/api/render/status/:renderId', (req, res) => {
 // 5c. POST /api/open-folder - highlights the rendered video in Windows Explorer
 app.post('/api/open-folder', (req, res) => {
   const { filename } = req.body;
-  const outputPath = path.resolve(__dirname, '..', 'public', filename);
+  const outputPath = path.resolve(projectRoot, 'public', filename);
 
   if (fs.existsSync(outputPath)) {
     // explorer /select highlights the exact output file
@@ -225,7 +233,7 @@ app.post('/api/upload', (req, res) => {
   }
 
   try {
-    const audioDir = path.join(__dirname, '..', 'public', 'audio');
+    const audioDir = path.join(projectRoot, 'public', 'audio');
     if (!fs.existsSync(audioDir)) {
       fs.mkdirSync(audioDir, { recursive: true });
     }

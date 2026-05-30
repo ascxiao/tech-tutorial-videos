@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { StandaloneDashboard } from "./components/StandaloneDashboard";
 import { TutorialData } from "./types";
+import { resolveAssetUrl } from "./utils";
 
 export const App: React.FC = () => {
   const [tutorials, setTutorials] = useState<TutorialData[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Load tutorials database dynamically from public folder
+  // Load tutorials database dynamically from Express API server with cache-busting
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch("/data/tutorials.json");
+        const res = await fetch(resolveAssetUrl("data/tutorials.json"));
         const data = await res.json();
         setTutorials(data);
         if (data.length > 0) {

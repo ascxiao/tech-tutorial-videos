@@ -3,6 +3,7 @@ import { Player, PlayerRef } from "@remotion/player";
 import { Code, Music, Volume2, Settings, PlayCircle, Terminal, Upload } from "lucide-react";
 import { TutorialData, WordCaption, LineTiming, calculateAnimationDuration } from "../types";
 import { PureVerticalVideo } from "./PureVerticalVideo";
+import { resolveAssetUrl } from "../utils";
 
 interface StandaloneDashboardProps {
   initialProps: TutorialData;
@@ -24,6 +25,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
   const [outroText, setOutroText] = useState(initialProps.outroText || "Follow for more quick challenges!");
   const [voiceName, setVoiceName] = useState(initialProps.voiceName || "en-US-GuyNeural");
   const [activeCodeTab, setActiveCodeTab] = useState<"before" | "after">("before");
+  const [pipelineRevision, setPipelineRevision] = useState(0);
   
   // Pipeline BGM list & selected track
   const [bgmList, setBgmList] = useState<string[]>([]);
@@ -100,8 +102,8 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
   useEffect(() => {
     async function fetchCaptions() {
       try {
-        const cleanCaptionFile = initialProps.captionFile.startsWith("/") ? initialProps.captionFile : `/${initialProps.captionFile}`;
-        const res = await fetch(cleanCaptionFile);
+        // Load dynamically from local Express static asset server with cache-busting!
+        const res = await fetch(resolveAssetUrl(initialProps.captionFile, pipelineRevision));
         const data = await res.json();
         setCaptions(data);
         addLog(`Loaded ${data.length} word timestamps from database.`);
@@ -110,7 +112,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       }
     }
     fetchCaptions();
-  }, [initialProps.captionFile]);
+  }, [initialProps.captionFile, pipelineRevision]);
 
   // 3. Synchronize horizontal timeline playhead with Player Ref events!
   useEffect(() => {
@@ -253,7 +255,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
         }
       }, 800);
 
-    } catch (err) {
+    } catch {
       addLog("Failed to contact Express render compiler service.");
       setStatus("idle");
     }
@@ -436,6 +438,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
         return;
       }
       setPipelineProgress(prev => ({ ...prev, sync: "success" }));
+      setPipelineRevision(prev => prev + 1);
       addLog("[AUTO-PRODUCE] Config and alignment successfully synchronized to database.");
     } catch {
       setPipelineProgress(prev => ({ ...prev, sync: "failed" }));
@@ -561,6 +564,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
     outroText,
     voiceName,
     bgmVolume,
+    pipelineRevision,
   };
 
   return (

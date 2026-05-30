@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useDelayRender, staticFile } from "remotion";
+import { useDelayRender } from "remotion";
 import { createHighlighter } from "shiki";
 import { LineTiming, WordCaption } from "../types";
+import { resolveAssetUrl } from "../utils";
 
 interface CodeBlockProps {
   codeSnippet: string;
@@ -87,7 +88,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
     async function loadCaptions() {
       if (!captionFile) return;
       try {
-        const response = await fetch(staticFile(captionFile));
+        const response = await fetch(resolveAssetUrl(captionFile));
         const data = await response.json();
         if (active) {
           setCaptions(data);

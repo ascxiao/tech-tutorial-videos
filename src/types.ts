@@ -30,6 +30,7 @@ export interface TutorialData {
   outroText?: string;
   voiceName?: string;
   bgmVolume?: number;
+  pipelineRevision?: number;
 }
 
 export const calculateAnimationDuration = (params: {

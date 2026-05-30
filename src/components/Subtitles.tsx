@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { useDelayRender, staticFile } from "remotion";
+import { useDelayRender } from "remotion";
 import { WordCaption } from "../types";
+import { resolveAssetUrl } from "../utils";
 
 interface SubtitlesProps {
   captionFile: string;
   currentFrame: number;
   fps: number;
+  pipelineRevision?: number;
 }
 
 export const Subtitles: React.FC<SubtitlesProps> = ({
   captionFile,
   currentFrame,
   fps,
+  pipelineRevision,
 }) => {
   const [captions, setCaptions] = useState<WordCaption[]>([]);
   const { delayRender, continueRender } = useDelayRender();
@@ -21,15 +24,10 @@ export const Subtitles: React.FC<SubtitlesProps> = ({
     let active = true;
     async function loadCaptions() {
       try {
-        // staticFile resolves paths in the public directory
-        const response = await fetch(staticFile(captionFile));
+        const response = await fetch(resolveAssetUrl(captionFile, pipelineRevision));
         const data = await response.json();
         if (active) {
-          const processed = data.map((w: WordCaption) => ({
-            ...w,
-            end: Math.max(w.start, w.end - 0.002),
-          }));
-          setCaptions(processed);
+          setCaptions(data);
           continueRender(handle);
         }
       } catch (err) {
@@ -43,7 +41,7 @@ export const Subtitles: React.FC<SubtitlesProps> = ({
     return () => {
       active = false;
     };
-  }, [captionFile, handle, continueRender]);
+  }, [captionFile, handle, continueRender, pipelineRevision]);
 
   if (captions.length === 0) {
     return (

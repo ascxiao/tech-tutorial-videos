@@ -1,9 +1,10 @@
 import React from "react";
-import { Audio, useCurrentFrame, useVideoConfig, staticFile, Sequence } from "remotion";
+import { Audio, useCurrentFrame, useVideoConfig, Sequence } from "remotion";
 import { Header } from "./Header";
 import { CodeBlock } from "./CodeBlock";
 import { Subtitles } from "./Subtitles";
 import { TutorialData } from "../types";
+import { resolveAssetUrl } from "../utils";
 
 // Memoized AudioTracks component to completely isolate HTML5 audio tags from per-frame useCurrentFrame() updates
 const AudioTracks: React.FC<{
@@ -12,19 +13,20 @@ const AudioTracks: React.FC<{
   bgmVolume?: number;
   introFrames: number;
   videoSetup?: string;
-}> = React.memo(({ audioFile, backgroundMusic, bgmVolume = 0.35, introFrames, videoSetup }) => {
+  pipelineRevision?: number;
+}> = React.memo(({ audioFile, backgroundMusic, bgmVolume = 0.35, introFrames, videoSetup, pipelineRevision }) => {
   return (
     <>
       {videoSetup === "before_after" ? (
-        <Sequence from={introFrames} key={`voiceover-seq-${audioFile}`}>
-          <Audio src={staticFile(audioFile)} key={`voiceover-audio-delayed-${audioFile}`} />
+        <Sequence from={introFrames} key={`voiceover-seq-${audioFile}-${pipelineRevision}`}>
+          <Audio src={resolveAssetUrl(audioFile, pipelineRevision)} pauseWhenBuffering key={`voiceover-audio-delayed-${audioFile}-${pipelineRevision}`} />
         </Sequence>
       ) : (
-        <Audio src={staticFile(audioFile)} key={`voiceover-audio-standard-${audioFile}`} />
+        <Audio src={resolveAssetUrl(audioFile, pipelineRevision)} pauseWhenBuffering key={`voiceover-audio-standard-${audioFile}-${pipelineRevision}`} />
       )}
 
       {backgroundMusic && (
-        <Audio src={staticFile(backgroundMusic)} volume={bgmVolume} key={`bgm-audio-${backgroundMusic}-${bgmVolume}`} />
+        <Audio src={resolveAssetUrl(backgroundMusic, pipelineRevision)} volume={bgmVolume} pauseWhenBuffering key={`bgm-audio-${backgroundMusic}-${pipelineRevision}`} />
       )}
     </>
   );
@@ -47,6 +49,7 @@ export const PureVerticalVideo: React.FC<TutorialData> = ({
   challengeText,
   outroText,
   bgmVolume,
+  pipelineRevision,
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
@@ -92,17 +95,19 @@ export const PureVerticalVideo: React.FC<TutorialData> = ({
           captionFile={captionFile}
           currentFrame={videoSetup === "before_after" ? frame - introFrames : frame}
           fps={fps}
+          pipelineRevision={pipelineRevision}
         />
       )}
 
       {/* Static, isolated audio tracks with strict remount keying */}
       <AudioTracks
-        key={`audio-tracks-${backgroundMusic}-${bgmVolume}`}
+        key={`audio-tracks-${backgroundMusic}-${pipelineRevision}`}
         audioFile={audioFile}
         backgroundMusic={backgroundMusic}
         bgmVolume={bgmVolume}
         introFrames={introFrames}
         videoSetup={videoSetup}
+        pipelineRevision={pipelineRevision}
       />
     </div>
   );

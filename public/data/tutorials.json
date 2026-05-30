@@ -12,157 +12,157 @@
         "lineStart": 1,
         "lineEnd": 1,
         "startFrame": 0,
-        "endFrame": 49
+        "endFrame": 51
       },
       {
         "lineStart": 2,
         "lineEnd": 2,
-        "startFrame": 49,
-        "endFrame": 98
+        "startFrame": 51,
+        "endFrame": 103
       },
       {
         "lineStart": 3,
         "lineEnd": 3,
-        "startFrame": 98,
-        "endFrame": 147
+        "startFrame": 103,
+        "endFrame": 154
       },
       {
         "lineStart": 4,
         "lineEnd": 4,
-        "startFrame": 147,
-        "endFrame": 197
+        "startFrame": 154,
+        "endFrame": 206
       },
       {
         "lineStart": 5,
         "lineEnd": 5,
-        "startFrame": 197,
-        "endFrame": 246
+        "startFrame": 206,
+        "endFrame": 258
       },
       {
         "lineStart": 6,
         "lineEnd": 6,
-        "startFrame": 246,
-        "endFrame": 295
+        "startFrame": 258,
+        "endFrame": 309
       },
       {
         "lineStart": 7,
         "lineEnd": 7,
-        "startFrame": 295,
-        "endFrame": 344
+        "startFrame": 309,
+        "endFrame": 361
       },
       {
         "lineStart": 8,
         "lineEnd": 8,
-        "startFrame": 344,
-        "endFrame": 394
+        "startFrame": 361,
+        "endFrame": 413
       },
       {
         "lineStart": 9,
         "lineEnd": 9,
-        "startFrame": 394,
-        "endFrame": 443
+        "startFrame": 413,
+        "endFrame": 464
       },
       {
         "lineStart": 10,
         "lineEnd": 10,
-        "startFrame": 443,
-        "endFrame": 492
+        "startFrame": 464,
+        "endFrame": 516
       },
       {
         "lineStart": 11,
         "lineEnd": 11,
-        "startFrame": 492,
-        "endFrame": 541
+        "startFrame": 516,
+        "endFrame": 568
       },
       {
         "lineStart": 12,
         "lineEnd": 12,
-        "startFrame": 541,
-        "endFrame": 591
+        "startFrame": 568,
+        "endFrame": 619
       },
       {
         "lineStart": 13,
         "lineEnd": 13,
-        "startFrame": 591,
-        "endFrame": 640
+        "startFrame": 619,
+        "endFrame": 671
       },
       {
         "lineStart": 14,
         "lineEnd": 14,
-        "startFrame": 640,
-        "endFrame": 689
+        "startFrame": 671,
+        "endFrame": 723
       },
       {
         "lineStart": 15,
         "lineEnd": 15,
-        "startFrame": 689,
-        "endFrame": 739
+        "startFrame": 723,
+        "endFrame": 774
       },
       {
         "lineStart": 16,
         "lineEnd": 16,
-        "startFrame": 739,
-        "endFrame": 788
+        "startFrame": 774,
+        "endFrame": 826
       },
       {
         "lineStart": 17,
         "lineEnd": 17,
-        "startFrame": 788,
-        "endFrame": 837
+        "startFrame": 826,
+        "endFrame": 877
       },
       {
         "lineStart": 18,
         "lineEnd": 18,
-        "startFrame": 837,
-        "endFrame": 886
+        "startFrame": 877,
+        "endFrame": 929
       },
       {
         "lineStart": 19,
         "lineEnd": 19,
-        "startFrame": 886,
-        "endFrame": 936
+        "startFrame": 929,
+        "endFrame": 981
       },
       {
         "lineStart": 20,
         "lineEnd": 20,
-        "startFrame": 936,
-        "endFrame": 985
+        "startFrame": 981,
+        "endFrame": 1032
       },
       {
         "lineStart": 21,
         "lineEnd": 21,
-        "startFrame": 985,
-        "endFrame": 1034
+        "startFrame": 1032,
+        "endFrame": 1084
       },
       {
         "lineStart": 22,
         "lineEnd": 22,
-        "startFrame": 1034,
-        "endFrame": 1083
+        "startFrame": 1084,
+        "endFrame": 1136
       },
       {
         "lineStart": 23,
         "lineEnd": 23,
-        "startFrame": 1083,
-        "endFrame": 1133
+        "startFrame": 1136,
+        "endFrame": 1187
       },
       {
         "lineStart": 24,
         "lineEnd": 24,
-        "startFrame": 1133,
-        "endFrame": 1182
+        "startFrame": 1187,
+        "endFrame": 1239
       },
       {
         "lineStart": 25,
         "lineEnd": 25,
-        "startFrame": 1182,
-        "endFrame": 1231
+        "startFrame": 1239,
+        "endFrame": 1291
       },
       {
         "lineStart": 26,
         "lineEnd": 26,
-        "startFrame": 1231,
-        "endFrame": 1281
+        "startFrame": 1291,
+        "endFrame": 1342
       }
     ],
     "videoSetup": "standard",
@@ -171,9 +171,9 @@
     "lineIntervalMs": 1500,
     "channelName": "@TechQuickies",
     "challengeText": "How will you debug this?",
-    "narrationText": "Building a merge sort algorithm relies on a divide-and-conquer strategy divided into two main parts: splitting the data recursively and merging it back together in order. You start by creating a main function with a base case that returns the array if it contains one or zero elements, as it is already sorted. If the array is larger, you find the midpoint, split the array into left and right halves, and recursively call the function on both halves until the entire list is broken down into single-element pieces. Finally, you build a helper function that uses two pointers to compare these elements side-by-side, appends the smaller value to a new list, and grabs any remaining leftover numbers, passing the newly ordered pieces back up the recursive chain until the entire dataset is seamlessly rebuilt.",
+    "narrationText": "Building lol pikachu sort whatttttt fucks on a divide-and-conquer strategy divided into two main parts: splitting the data recursively and merging it back together in order. You start by creating a main function with a base case that returns the array if it contains one or zero elements, as it is already sorted. If the array is larger, you find the midpoint, split the array into left and right halves, and recursively call the function on both halves until the entire list is broken down into single-element pieces. Finally, you build a helper function that uses two pointers to compare these elements side-by-side, appends the smaller value to a new list, and grabs any remaining leftover numbers, passing the newly ordered pieces back up the recursive chain until the entire dataset is seamlessly rebuilt.",
     "outroText": "Follow for more quick challenges!",
-    "voiceName": "en-US-GuyNeural",
+    "voiceName": "en-US-MichelleNeural",
     "bgmVolume": 0.73
   }
 ]
