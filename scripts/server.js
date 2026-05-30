@@ -21,8 +21,9 @@ app.get('/api/bgm', (req, res) => {
   
   const files = fs.readdirSync(audioDir);
   const bgm = files.filter(f => {
-    if (!f.endsWith('.mp3')) return false;
-    const base = path.basename(f, '.mp3');
+    const ext = path.extname(f).toLowerCase();
+    if (!['.mp3', '.wav', '.m4a', '.aac', '.ogg'].includes(ext)) return false;
+    const base = path.basename(f, ext);
     // filter out tutorial voiceovers (which are 3-digit IDs like '001', '002')
     return !(base.length === 3 && !isNaN(base));
   });
@@ -104,25 +105,39 @@ app.post('/api/transcribe', (req, res) => {
   });
 });
 
+// Helper to find the next available incremented output filename
+function getIncrementedOutputPath(id) {
+  let index = 0;
+  let filename = `output_${id}.mp4`;
+  let fullPath = path.resolve(__dirname, '..', 'public', filename);
+  while (fs.existsSync(fullPath)) {
+    index++;
+    filename = `output_${id}_${index}.mp4`;
+    fullPath = path.resolve(__dirname, '..', 'public', filename);
+  }
+  return { filename, fullPath };
+}
+
 // 5. POST /api/render - triggers background remotion headless video render with progress tracking
 app.post('/api/render', (req, res) => {
   const { id } = req.body;
-  const outputPath = path.resolve(__dirname, '..', 'public', `output_${id}.mp4`);
+  
+  // Find next incremented filename to allow concurrent renders of the same composition!
+  const { filename, fullPath } = getIncrementedOutputPath(id);
+  const renderId = path.basename(filename, '.mp4'); // e.g. "output_001_1" or "output_001"
 
-  if (activeRenders[id] && activeRenders[id].status === 'rendering') {
-    return res.json({ success: true, message: "Render already in progress", id, progress: activeRenders[id].progress });
-  }
-
-  activeRenders[id] = {
+  activeRenders[renderId] = {
+    id,
     progress: 0,
     status: 'rendering',
-    outputPath,
+    outputPath: fullPath,
+    filename,
     error: null
   };
 
   const compositionId = `tutorial-${id}`;
-  const relativeOutputPath = `public/output_${id}.mp4`;
-  console.log(`[*] Starting background Remotion render for composition: ${compositionId}`);
+  const relativeOutputPath = `public/${filename}`;
+  console.log(`[*] Starting background Remotion render for composition: ${compositionId} to file: ${relativeOutputPath}`);
 
   // Spawn npx remotion render in the workspace root directory
   const child = spawn('npx', ['remotion', 'render', compositionId, relativeOutputPath], {
@@ -132,7 +147,7 @@ app.post('/api/render', (req, res) => {
 
   child.stdout.on('data', (data) => {
     const output = data.toString();
-    console.log(`[Remotion ${id}]: ${output.trim()}`);
+    console.log(`[Remotion ${renderId}]: ${output.trim()}`);
     
     // Ignore bundler percentage outputs to prevent false-positive early 100% states
     if (output.includes('Bundling')) {
@@ -143,7 +158,7 @@ app.post('/api/render', (req, res) => {
     const pctMatch = output.match(/(\d+)%/);
     if (pctMatch) {
       const prg = parseInt(pctMatch[1], 10);
-      activeRenders[id].progress = Math.max(activeRenders[id].progress, prg);
+      activeRenders[renderId].progress = Math.max(activeRenders[renderId].progress, prg);
     } else {
       const frameMatch = output.match(/(\d+)\s*\/\s*(\d+)/);
       if (frameMatch) {
@@ -151,35 +166,35 @@ app.post('/api/render', (req, res) => {
         const total = parseInt(frameMatch[2], 10);
         if (total > 0) {
           const pct = Math.round((current / total) * 100);
-          activeRenders[id].progress = Math.min(100, Math.max(activeRenders[id].progress, pct));
+          activeRenders[renderId].progress = Math.min(100, Math.max(activeRenders[renderId].progress, pct));
         }
       }
     }
   });
 
   child.stderr.on('data', (data) => {
-    console.error(`[Remotion ${id} Error]: ${data.toString().trim()}`);
+    console.error(`[Remotion ${renderId} Error]: ${data.toString().trim()}`);
   });
 
   child.on('close', (code) => {
     if (code === 0) {
-      console.log(`[+] Render completed successfully: public/output_${id}.mp4`);
-      activeRenders[id].status = 'success';
-      activeRenders[id].progress = 100;
+      console.log(`[+] Render completed successfully: ${relativeOutputPath}`);
+      activeRenders[renderId].status = 'success';
+      activeRenders[renderId].progress = 100;
     } else {
       console.error(`[-] Remotion process exited with error code ${code}`);
-      activeRenders[id].status = 'failed';
-      activeRenders[id].error = `Headless process exited with code ${code}`;
+      activeRenders[renderId].status = 'failed';
+      activeRenders[renderId].error = `Headless process exited with code ${code}`;
     }
   });
 
-  res.json({ success: true, message: "Render started in background", id });
+  res.json({ success: true, message: "Render started in background", id, renderId, filename });
 });
 
-// 5b. GET /api/render/status/:id - polls active render progress
-app.get('/api/render/status/:id', (req, res) => {
-  const { id } = req.params;
-  const render = activeRenders[id];
+// 5b. GET /api/render/status/:renderId - polls active render progress
+app.get('/api/render/status/:renderId', (req, res) => {
+  const { renderId } = req.params;
+  const render = activeRenders[renderId];
   if (!render) {
     return res.status(404).json({ error: "No active rendering found" });
   }
@@ -188,8 +203,8 @@ app.get('/api/render/status/:id', (req, res) => {
 
 // 5c. POST /api/open-folder - highlights the rendered video in Windows Explorer
 app.post('/api/open-folder', (req, res) => {
-  const { id } = req.body;
-  const outputPath = path.resolve(__dirname, '..', 'public', `output_${id}.mp4`);
+  const { filename } = req.body;
+  const outputPath = path.resolve(__dirname, '..', 'public', filename);
 
   if (fs.existsSync(outputPath)) {
     // explorer /select highlights the exact output file

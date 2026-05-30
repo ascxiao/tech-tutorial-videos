@@ -30,6 +30,14 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
   const [selectedBgm, setSelectedBgm] = useState(
     initialProps.backgroundMusic ? initialProps.backgroundMusic.split("/").pop() || "none" : "none"
   );
+  const [bgmVolume, setBgmVolume] = useState(
+    initialProps.bgmVolume !== undefined ? initialProps.bgmVolume : 0.35
+  );
+  const [pipelineProgress, setPipelineProgress] = useState({
+    tts: "idle" as "idle" | "running" | "success" | "failed",
+    whisper: "idle" as "idle" | "running" | "success" | "failed",
+    sync: "idle" as "idle" | "running" | "success" | "failed",
+  });
   
   const [narrationText, setNarrationText] = useState(initialProps.narrationText || "");
   const [captions, setCaptions] = useState<WordCaption[]>([]);
@@ -40,15 +48,18 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
   const [status, setStatus] = useState<"idle" | "tts" | "whisper" | "save" | "render">("idle");
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success">("idle");
 
-  // Render Settings Modal States
+  // Render Settings Modal & Multi-render States
   const [showRenderModal, setShowRenderModal] = useState(false);
-  const [renderProgress, setRenderProgress] = useState(0);
-  const [renderStep, setRenderStep] = useState<"idle" | "rendering" | "success" | "failed">("idle");
-  const [renderError, setRenderError] = useState("");
   const [renderResolution, setRenderResolution] = useState("1080x1920");
   const [renderFps, setRenderFps] = useState("30");
   const [renderCodec, setRenderCodec] = useState("h264");
-
+  const [renders, setRenders] = useState<Record<string, {
+    renderId: string;
+    filename: string;
+    progress: number;
+    status: 'rendering' | 'success' | 'failed';
+    error?: string;
+  }>>({});
   // Player Ref & Playhead sync
   const playerRef = useRef<PlayerRef>(null);
   const [frame, setFrame] = useState(0);
@@ -169,15 +180,9 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
   // D. Compile video to MP4 using Remotion headless renderer in local command-line
   const handleRenderVideo = () => {
     setShowRenderModal(true);
-    setRenderStep("idle");
-    setRenderProgress(0);
-    setRenderError("");
   };
 
   const handleStartRender = async () => {
-    setRenderStep("rendering");
-    setRenderProgress(0);
-    setRenderError("");
     setStatus("render");
     addLog(`Initiating background headless Remotion rendering for tutorial-${id} (${renderResolution}, ${renderFps} FPS, ${renderCodec})...`);
 
@@ -189,54 +194,78 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       });
       const data = await res.json();
       if (!data.success) {
-        setRenderStep("failed");
-        setRenderError(data.error || "Failed to start render");
-        addLog(`[RENDER FAILED] ${data.error}`);
+        addLog(`[RENDER FAILED] ${data.error || "Failed to start render"}`);
         setStatus("idle");
         return;
       }
 
-      // Begin status polling
+      const rId = data.renderId;
+      const fn = data.filename;
+
+      // Add to renders list
+      setRenders(prev => ({
+        ...prev,
+        [rId]: {
+          renderId: rId,
+          filename: fn,
+          progress: 0,
+          status: 'rendering'
+        }
+      }));
+      setStatus("idle");
+
+      // Begin status polling for this specific renderId
       const interval = setInterval(async () => {
         try {
-          const statusRes = await fetch(`http://localhost:3005/api/render/status/${id}`);
+          const statusRes = await fetch(`http://localhost:3005/api/render/status/${rId}`);
           if (statusRes.ok) {
             const statusData = await statusRes.json();
-            setRenderProgress(statusData.progress);
-            if (statusData.status === "success") {
-              setRenderStep("success");
-              setRenderProgress(100);
-              addLog(`[SUCCESS] Pure vertical 9:16 video rendered: public/output_${id}.mp4!`);
-              setStatus("idle");
-              clearInterval(interval);
-            } else if (statusData.status === "failed") {
-              setRenderStep("failed");
-              setRenderError(statusData.error || "Rendering process exited with an error.");
-              addLog(`[RENDER FAILED] ${statusData.error}`);
-              setStatus("idle");
+            setRenders(prev => {
+              const current = prev[rId];
+              if (!current) {
+                clearInterval(interval);
+                return prev;
+              }
+              return {
+                ...prev,
+                [rId]: {
+                  ...current,
+                  progress: statusData.progress,
+                  status: statusData.status,
+                  error: statusData.error
+                }
+              };
+            });
+
+            if (statusData.status === "success" || statusData.status === "failed") {
+              if (statusData.status === "success") {
+                addLog(`[SUCCESS] Pure vertical 9:16 video rendered: public/${fn}!`);
+              } else {
+                addLog(`[RENDER FAILED] ${statusData.error || "Rendering process exited with an error."}`);
+              }
               clearInterval(interval);
             }
+          } else {
+            clearInterval(interval);
           }
         } catch (err) {
           console.error("Error polling render status:", err);
         }
       }, 800);
 
-    } catch {
-      setRenderStep("failed");
-      setRenderError("Failed to communicate with the render server.");
+    } catch (err) {
       addLog("Failed to contact Express render compiler service.");
       setStatus("idle");
     }
   };
 
-  const handleOpenFolder = async () => {
+  const handleOpenFolder = async (filename: string) => {
     try {
-      addLog(`Opening directory highlighting output_${id}.mp4...`);
+      addLog(`Opening directory highlighting ${filename}...`);
       const res = await fetch("http://localhost:3005/api/open-folder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ filename }),
       });
       if (res.ok) {
         addLog("[SUCCESS] Opened output directory successfully.");
@@ -248,16 +277,23 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
     }
   };
 
-  // Unified Auto-Produce Pipeline: TTS -> Whisper -> Sync & Save -> Render Modal Launch
+  // Unified Auto-Produce Pipeline: TTS -> Whisper -> Sync & Save -> Manual Verification Hold
   const handleAutoProduceVideo = async () => {
     if (!narrationText.trim()) {
       addLog("Error: Narration text is empty. Cannot start auto-production.");
       return;
     }
 
+    // Initialize progress nodes
+    setPipelineProgress({
+      tts: "running",
+      whisper: "idle",
+      sync: "idle",
+    });
+
     // 1. Generate TTS
     setStatus("tts");
-    addLog("[AUTO-PRODUCE] Step 1/4: Synthesizing neural voiceover...");
+    addLog("[AUTO-PRODUCE] Step 1/3: Synthesizing neural voiceover...");
     try {
       const ttsRes = await fetch("http://localhost:3005/api/tts", {
         method: "POST",
@@ -266,12 +302,15 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       });
       const ttsData = await ttsRes.json();
       if (!ttsData.success) {
+        setPipelineProgress(prev => ({ ...prev, tts: "failed" }));
         addLog(`[AUTO-PRODUCE FAILED] TTS failed: ${ttsData.error}`);
         setStatus("idle");
         return;
       }
+      setPipelineProgress(prev => ({ ...prev, tts: "success", whisper: "running" }));
       addLog("[AUTO-PRODUCE] TTS voiceover generation completed successfully.");
     } catch {
+      setPipelineProgress(prev => ({ ...prev, tts: "failed" }));
       addLog("[AUTO-PRODUCE FAILED] Failed to contact local Express TTS service.");
       setStatus("idle");
       return;
@@ -279,7 +318,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
 
     // 2. Whisper Transcription
     setStatus("whisper");
-    addLog("[AUTO-PRODUCE] Step 2/4: Transcribing speech with Whisper CPU...");
+    addLog("[AUTO-PRODUCE] Step 2/3: Transcribing speech with Whisper CPU...");
     let latestCaptions: WordCaption[] = [];
     try {
       const transcribeRes = await fetch("http://localhost:3005/api/transcribe", {
@@ -289,14 +328,17 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       });
       const transcribeData = await transcribeRes.json();
       if (!transcribeData.success) {
+        setPipelineProgress(prev => ({ ...prev, whisper: "failed" }));
         addLog(`[AUTO-PRODUCE FAILED] Transcription failed: ${transcribeData.error}`);
         setStatus("idle");
         return;
       }
       latestCaptions = transcribeData.captions;
       setCaptions(latestCaptions);
+      setPipelineProgress(prev => ({ ...prev, whisper: "success", sync: "running" }));
       addLog(`[AUTO-PRODUCE] Whisper completed. Transcribed ${latestCaptions.length} words.`);
     } catch {
+      setPipelineProgress(prev => ({ ...prev, whisper: "failed" }));
       addLog("[AUTO-PRODUCE FAILED] Failed to contact local Whisper transcription service.");
       setStatus("idle");
       return;
@@ -304,7 +346,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
 
     // 3. Align & Save Config
     setStatus("save");
-    addLog("[AUTO-PRODUCE] Step 3/4: Aligning typing reveals with speech timestamps...");
+    addLog("[AUTO-PRODUCE] Step 3/3: Aligning typing reveals with speech timestamps...");
     const { cleanedCode, speechSegments } = parseCodeComments();
     const alignedTimings: LineTiming[] = [];
 
@@ -377,6 +419,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       narrationText,
       outroText,
       voiceName,
+      bgmVolume,
     };
 
     try {
@@ -387,21 +430,23 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       });
       const saveData = await saveRes.json();
       if (!saveData.success) {
+        setPipelineProgress(prev => ({ ...prev, sync: "failed" }));
         addLog(`[AUTO-PRODUCE FAILED] Failed to save config: ${saveData.error}`);
         setStatus("idle");
         return;
       }
+      setPipelineProgress(prev => ({ ...prev, sync: "success" }));
       addLog("[AUTO-PRODUCE] Config and alignment successfully synchronized to database.");
     } catch {
+      setPipelineProgress(prev => ({ ...prev, sync: "failed" }));
       addLog("[AUTO-PRODUCE FAILED] Failed to contact Express save config service.");
       setStatus("idle");
       return;
     }
 
-    // 4. Launch Render Modal
+    // Clean stop at Step 3 for manual review!
     setStatus("idle");
-    addLog("[AUTO-PRODUCE] Step 4/4: Launching HD Video Render Manager...");
-    handleRenderVideo();
+    addLog("[SUCCESS] Pipeline completed Steps 1-3! Paused for manual preview verification.");
   };
 
   // E. Handle local Drag-and-Drop or direct BGM file upload
@@ -515,6 +560,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
     narrationText,
     outroText,
     voiceName,
+    bgmVolume,
   };
 
   return (
@@ -820,6 +866,23 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
                 </label>
               </div>
 
+              {/* Dynamic BGM Volume Customizer */}
+              <div className={`flex flex-col gap-1.5 mt-2 bg-white/50 border border-slate-100 p-2 rounded-lg transition-all duration-350 ${selectedBgm === "none" ? "opacity-45 pointer-events-none select-none" : ""}`}>
+                <div className="flex justify-between items-center text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold">
+                  <span>Background Volume</span>
+                  <span className="text-emerald-500 font-extrabold">{selectedBgm === "none" ? "Muted" : `${Math.round(bgmVolume * 100)}%`}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  disabled={selectedBgm === "none"}
+                  value={selectedBgm === "none" ? 0 : Math.round(bgmVolume * 100)}
+                  onChange={(e) => setBgmVolume(parseFloat(e.target.value) / 100)}
+                  className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500 disabled:opacity-50"
+                />
+              </div>
+
               {/* Upload Status bar */}
               {uploadStatus === "uploading" && (
                 <span className="text-[8px] font-mono text-[#EAB308] uppercase font-bold animate-pulse">Uploading file...</span>
@@ -852,8 +915,107 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
               </div>
             </div>
 
+            {/* Visual Pipeline Nodal Stepper */}
+            <div className="bg-[#050B08] border border-emerald-500/20 rounded-xl p-4 flex flex-col gap-3 shrink-0">
+              <span className="text-[9px] font-mono text-emerald-500 uppercase tracking-widest font-bold border-b border-emerald-950 pb-1.5 flex justify-between">
+                <span>Pipeline Automation Nodes</span>
+                <span>Halt at Step 3 for Manual Review</span>
+              </span>
+
+              {/* Horizontal Nodes Connector Graph */}
+              <div className="flex justify-between items-center px-2 py-1 font-mono text-[9px] font-bold">
+                {/* Node 1: TTS */}
+                <div className="flex flex-col items-center gap-1 flex-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    pipelineProgress.tts === 'running' 
+                      ? 'border-emerald-400 bg-emerald-950/20 text-emerald-400 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.3)]' 
+                      : pipelineProgress.tts === 'success'
+                        ? 'border-emerald-500 bg-emerald-500 text-white'
+                        : pipelineProgress.tts === 'failed'
+                          ? 'border-red-500 bg-red-500 text-white'
+                          : 'border-slate-700 text-slate-500 bg-slate-900/50'
+                  }`}>
+                    {pipelineProgress.tts === 'success' ? '✓' : '1'}
+                  </div>
+                  <span className={pipelineProgress.tts === 'running' ? 'text-emerald-400' : pipelineProgress.tts === 'success' ? 'text-emerald-500/80' : 'text-slate-400'}>
+                    TTS Voice
+                  </span>
+                </div>
+
+                {/* Connection Line 1-2 */}
+                <div className={`h-0.5 flex-1 mx-2 transition-all duration-350 ${
+                  pipelineProgress.tts === 'success' ? 'bg-emerald-500/50' : 'bg-slate-800'
+                }`} />
+
+                {/* Node 2: Whisper */}
+                <div className="flex flex-col items-center gap-1 flex-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    pipelineProgress.whisper === 'running' 
+                      ? 'border-emerald-400 bg-emerald-950/20 text-emerald-400 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.3)]' 
+                      : pipelineProgress.whisper === 'success'
+                        ? 'border-emerald-500 bg-emerald-500 text-white'
+                        : pipelineProgress.whisper === 'failed'
+                          ? 'border-red-500 bg-red-500 text-white'
+                          : 'border-slate-700 text-slate-500 bg-slate-900/50'
+                  }`}>
+                    {pipelineProgress.whisper === 'success' ? '✓' : '2'}
+                  </div>
+                  <span className={pipelineProgress.whisper === 'running' ? 'text-emerald-400' : pipelineProgress.whisper === 'success' ? 'text-emerald-500/80' : 'text-slate-400'}>
+                    Whisper
+                  </span>
+                </div>
+
+                {/* Connection Line 2-3 */}
+                <div className={`h-0.5 flex-1 mx-2 transition-all duration-350 ${
+                  pipelineProgress.whisper === 'success' ? 'bg-emerald-500/50' : 'bg-slate-800'
+                }`} />
+
+                {/* Node 3: Sync DB */}
+                <div className="flex flex-col items-center gap-1 flex-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    pipelineProgress.sync === 'running' 
+                      ? 'border-emerald-400 bg-emerald-950/20 text-emerald-400 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.3)]' 
+                      : pipelineProgress.sync === 'success'
+                        ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                        : pipelineProgress.sync === 'failed'
+                          ? 'border-red-500 bg-red-500 text-white'
+                          : 'border-slate-700 text-slate-500 bg-slate-900/50'
+                  }`}>
+                    {pipelineProgress.sync === 'success' ? '✓' : '3'}
+                  </div>
+                  <span className={pipelineProgress.sync === 'running' ? 'text-emerald-400' : pipelineProgress.sync === 'success' ? 'text-emerald-500/80' : 'text-slate-400'}>
+                    Sync & Save
+                  </span>
+                </div>
+
+                {/* Connection Line 3-4 */}
+                <div className="h-0.5 flex-1 mx-2 border-t border-dashed border-slate-700" />
+
+                {/* Node 4: Manual Render */}
+                <div className="flex flex-col items-center gap-1 flex-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 border-slate-700 text-slate-500 bg-slate-900/50`}>
+                    4
+                  </div>
+                  <span className="text-slate-500">
+                    HD Export
+                  </span>
+                </div>
+              </div>
+
+              {/* Manual Verification stopped message */}
+              {pipelineProgress.sync === 'success' && (
+                <div className="mt-1 bg-emerald-950/20 border border-emerald-500/20 px-3 py-2 rounded-lg text-[10px] text-emerald-400 leading-normal flex flex-col gap-1">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
+                    <span>Halted: Ready for Manual Verification</span>
+                  </div>
+                  <p>TTS, Word transcription, and typing timings are fully synchronized. Use the video preview canvas to play, check subtitles, and verify volume before manual export.</p>
+                </div>
+              )}
+            </div>
+
             {/* Pipeline Action buttons */}
-            <div className="grid grid-cols-1 gap-2 shrink-0">
+            <div className="grid grid-cols-1 gap-2.5 shrink-0">
               <button
                 type="button"
                 disabled={status !== "idle"}
@@ -863,33 +1025,37 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
                 {status === "tts" && (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 rounded-full border-2 border-[#0369A1] border-t-transparent animate-spin" />
-                    Step 1/4: Generating TTS Voiceover...
+                    Step 1/3: Synthesizing TTS Voiceover...
                   </span>
                 )}
                 {status === "whisper" && (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 rounded-full border-2 border-[#0369A1] border-t-transparent animate-spin" />
-                    Step 2/4: Whispering Timestamps...
+                    Step 2/3: Whispering Timestamps...
                   </span>
                 )}
                 {status === "save" && (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 rounded-full border-2 border-[#0369A1] border-t-transparent animate-spin" />
-                    Step 3/4: Syncing Timing & Saving...
-                  </span>
-                )}
-                {status === "render" && (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full border-2 border-[#0369A1] border-t-transparent animate-spin" />
-                    Step 4/4: Launching HD Renderer...
+                    Step 3/3: Synchronizing & Saving Config...
                   </span>
                 )}
                 {status === "idle" && (
                   <span className="flex items-center gap-2">
                     <PlayCircle size={16} className="text-[#0284C7]" />
-                    Auto-Produce Final Video (TTS ➜ Whisper ➜ Sync ➜ Render)
+                    {pipelineProgress.sync === 'success' ? 'Restart Pipeline (Steps 1-3)' : 'Run Pipeline Start (Steps 1 ➜ 2 ➜ 3)'}
                   </span>
                 )}
+              </button>
+
+              {/* Dedicated Manual Render Trigger Button */}
+              <button
+                type="button"
+                onClick={handleRenderVideo}
+                className="py-3 px-4 bg-[#10B981] hover:bg-[#0D9668] border-2 border-[#059669] text-[#FFFFFF] font-black rounded-xl flex items-center justify-center gap-2.5 text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-[#10B981]/15"
+              >
+                <Settings size={14} className="text-white" />
+                Configure & Export Final Video (Step 4)
               </button>
             </div>
 
@@ -965,183 +1131,241 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
         </div>
       </div>
 
-      {/* 4. Glassmorphic Rendering Settings Modal */}
+      {/* 4. Multi-Render & Settings Modal */}
       {showRenderModal && (
-        <div className="fixed inset-0 bg-[#0B0F19]/80 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all duration-300">
-          <div className="bg-[#FFFFFF]/90 border border-slate-200/80 rounded-2xl w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col font-sans backdrop-filter">
+        <div className="fixed inset-0 bg-[#0B0F19]/65 flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-[#FFFFFF] border border-slate-200 rounded-2xl w-full max-w-4xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col font-sans">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#059669] animate-pulse" />
-                <span className="font-mono text-xs font-bold text-slate-500 uppercase tracking-widest">Remotion Engine v4.0</span>
+                <span className="font-mono text-xs font-bold text-slate-500 uppercase tracking-widest">Remotion Engine v4.0 • Multi-Render Deck</span>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (renderStep !== "rendering") setShowRenderModal(false);
-                }}
-                disabled={renderStep === "rendering"}
-                className="text-slate-400 hover:text-slate-600 font-bold transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                onClick={() => setShowRenderModal(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold transition-colors cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Content */}
-            <div className="p-6 flex-1 flex flex-col gap-6">
-              <div>
-                <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Render Output Configuration</h3>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Configure advanced high-definition settings for your vertical TikTok/Shorts MP4 compilation.</p>
+            <div className="p-6 flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[400px]">
+              
+              {/* Left Column: Settings Configuration */}
+              <div className="flex flex-col gap-4 border-r border-slate-100 pr-0 md:pr-6">
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">Configure New Render</h3>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Select high-definition settings for your vertical video compilation.</p>
+                </div>
+
+                {/* Resolution Input */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Target Resolution Preset</label>
+                  <select
+                    value={renderResolution}
+                    onChange={(e) => setRenderResolution(e.target.value)}
+                    className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
+                  >
+                    <option value="1080x1920">1080 x 1920 (Standard HD 9:16 - TikTok/Shorts)</option>
+                    <option value="720x1280">720 x 1280 (SD 9:16 - Fast Draft)</option>
+                  </select>
+                </div>
+
+                {/* FPS Input */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Target Frame Rate (FPS)</label>
+                  <select
+                    value={renderFps}
+                    onChange={(e) => setRenderFps(e.target.value)}
+                    className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
+                  >
+                    <option value="30">30 Frames Per Second (Web Standard)</option>
+                    <option value="60">60 Frames Per Second (Ultra Smooth)</option>
+                  </select>
+                </div>
+
+                {/* Video Codec */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Video Codec & Format</label>
+                  <select
+                    value={renderCodec}
+                    onChange={(e) => setRenderCodec(e.target.value)}
+                    className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
+                  >
+                    <option value="h264">MP4 H.264 (Universally Compatible)</option>
+                    <option value="vp8">WebM VP8 (Web Native)</option>
+                  </select>
+                </div>
+
+                {/* Start Button */}
+                <button
+                  type="button"
+                  onClick={handleStartRender}
+                  className="mt-auto w-full py-3 bg-[#059669] hover:bg-[#047857] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-[#059669]/20 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider text-xs"
+                >
+                  Start Headless Render
+                </button>
               </div>
 
-              {renderStep === "idle" && (
-                <div className="flex flex-col gap-4">
-                  {/* Resolution Input */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Target Resolution Preset</label>
-                    <select
-                      value={renderResolution}
-                      onChange={(e) => setRenderResolution(e.target.value)}
-                      className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
-                    >
-                      <option value="1080x1920">1080 x 1920 (Standard HD 9:16 - TikTok/Shorts)</option>
-                      <option value="720x1280">720 x 1280 (SD 9:16 - Fast Draft)</option>
-                    </select>
-                  </div>
-
-                  {/* FPS Input */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Target Frame Rate (FPS)</label>
-                    <select
-                      value={renderFps}
-                      onChange={(e) => setRenderFps(e.target.value)}
-                      className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
-                    >
-                      <option value="30">30 Frames Per Second (Web Standard)</option>
-                      <option value="60">60 Frames Per Second (Ultra Smooth)</option>
-                    </select>
-                  </div>
-
-                  {/* Video Codec */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-bold">Video Codec & Format</label>
-                    <select
-                      value={renderCodec}
-                      onChange={(e) => setRenderCodec(e.target.value)}
-                      className="w-full bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-3 py-2 rounded-lg font-mono text-xs focus:outline-none cursor-pointer"
-                    >
-                      <option value="h264">MP4 H.264 (Universally Compatible)</option>
-                      <option value="vp8">WebM VP8 (Web Native)</option>
-                    </select>
-                  </div>
-
-                  {/* Confirm Button */}
-                  <button
-                    type="button"
-                    onClick={handleStartRender}
-                    className="mt-4 w-full py-3 bg-[#059669] hover:bg-[#047857] text-[#FFFFFF] font-bold rounded-xl shadow-lg shadow-[#059669]/20 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider text-xs"
-                  >
-                    Confirm & Start Headless Render
-                  </button>
+              {/* Right Column: Active & Completed Renders List */}
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">Active Render Tasks</h3>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Monitor your background compiles. Multiple renders run concurrently.</p>
                 </div>
-              )}
 
-              {renderStep === "rendering" && (
-                <div className="flex flex-col items-center justify-center py-6 gap-6">
-                  {/* Spinning Ring */}
-                  <div className="relative w-20 h-20 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-full border-4 border-slate-100" />
-                    <div className="absolute inset-0 rounded-full border-4 border-[#059669] border-t-transparent animate-spin" />
-                    <span className="font-mono text-sm font-bold text-slate-800">{renderProgress}%</span>
-                  </div>
+                <div className="flex-1 overflow-y-auto max-h-[350px] flex flex-col gap-3 pr-1">
+                  {Object.values(renders).length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                      <span className="text-slate-400 text-xs font-medium">No renders started yet.</span>
+                      <span className="text-slate-400 text-[10px] mt-0.5">Click 'Start Headless Render' to trigger a background job.</span>
+                    </div>
+                  ) : (
+                    Object.values(renders).map((r) => (
+                      <div 
+                        key={r.renderId} 
+                        className={`p-3.5 border rounded-xl flex flex-col gap-2 transition-all ${
+                          r.status === 'rendering' 
+                            ? 'bg-emerald-50/10 border-emerald-500/20' 
+                            : r.status === 'success' 
+                              ? 'bg-slate-50/50 border-slate-200' 
+                              : 'bg-red-50/10 border-red-500/20'
+                        }`}
+                      >
+                        {/* Filename & Close/Dismiss */}
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono text-[11px] font-bold text-slate-700 truncate max-w-[220px]">
+                            {r.filename}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setRenders(prev => {
+                              const next = { ...prev };
+                              delete next[r.renderId];
+                              return next;
+                            })}
+                            className="text-slate-400 hover:text-slate-600 font-bold text-xs"
+                          >
+                            ✕
+                          </button>
+                        </div>
 
-                  <div className="text-center">
-                    <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">Rendering in Progress</h4>
-                    <p className="text-xs text-slate-500 mt-1 max-w-sm font-medium">Vite & Remotion are compiling your video frame-by-frame. Please do not close the dashboard.</p>
-                  </div>
+                        {/* Progress Bar & Badges */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
+                            <div
+                              style={{ width: `${r.progress}%` }}
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                r.status === 'rendering' 
+                                  ? 'bg-[#059669] shadow-[0_0_8px_#34D399]' 
+                                  : r.status === 'success' 
+                                    ? 'bg-emerald-500' 
+                                    : 'bg-red-500'
+                              }`}
+                            />
+                          </div>
+                          <span className="font-mono text-xs font-bold text-slate-700 w-8 text-right">
+                            {r.progress}%
+                          </span>
+                        </div>
 
-                  {/* Progress Bar Container */}
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
-                    <div
-                      style={{ width: `${renderProgress}%` }}
-                      className="bg-[#059669] h-full rounded-full transition-all duration-300 shadow-[0_0_8px_#34D399]"
-                    />
-                  </div>
+                        {/* Status Badge & Action buttons */}
+                        <div className="flex justify-between items-center mt-1">
+                          <div>
+                            {r.status === 'rendering' && (
+                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-mono text-[9px] font-bold uppercase tracking-wider animate-pulse">
+                                Rendering
+                              </span>
+                            )}
+                            {r.status === 'success' && (
+                              <span className="px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded-md font-mono text-[9px] font-bold uppercase tracking-wider">
+                                Completed ✓
+                              </span>
+                            )}
+                            {r.status === 'failed' && (
+                              <span className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-md font-mono text-[9px] font-bold uppercase tracking-wider">
+                                Failed ✕
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2">
+                            {r.status === 'success' && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFolder(r.filename)}
+                                className="px-2.5 py-1 bg-[#E0F2FE] hover:bg-[#BAE6FD] border border-[#0284C7] text-[#0369A1] font-bold rounded-lg text-[10px] uppercase tracking-wide cursor-pointer"
+                              >
+                                Show in Explorer
+                              </button>
+                            )}
+                            {r.status === 'failed' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Clear old task and start render again
+                                  setRenders(prev => {
+                                    const next = { ...prev };
+                                    delete next[r.renderId];
+                                    return next;
+                                  });
+                                  handleStartRender();
+                                }}
+                                className="px-2.5 py-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold rounded-lg text-[10px] uppercase tracking-wide cursor-pointer"
+                              >
+                                Try Again
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {r.status === 'failed' && r.error && (
+                          <p className="text-[10px] text-red-500 font-mono mt-1 bg-red-50/50 p-2 rounded border border-red-100/50 truncate">
+                            {r.error}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
-              )}
 
-              {renderStep === "success" && (
-                <div className="flex flex-col items-center justify-center py-6 gap-6">
-                  {/* Big Green Tick */}
-                  <div className="w-16 h-16 rounded-full bg-[#D1FAE5] border-2 border-[#059669] flex items-center justify-center text-[#059669] text-3xl font-extrabold animate-bounce">
-                    ✓
-                  </div>
+                {/* Run in Background button */}
+                <button
+                  type="button"
+                  onClick={() => setShowRenderModal(false)}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer mt-auto"
+                >
+                  Run in Background
+                </button>
+              </div>
 
-                  <div className="text-center">
-                    <h4 className="text-base font-extrabold text-slate-900 uppercase tracking-wider">Compilation Completed!</h4>
-                    <p className="text-xs text-slate-600 mt-2 font-mono bg-slate-50 border border-slate-150 px-3 py-1.5 rounded-lg inline-block">
-                      public/output_{id}.mp4
-                    </p>
-                  </div>
-
-                  {/* Actions Grid */}
-                  <div className="grid grid-cols-2 gap-3 w-full mt-2">
-                    <button
-                      type="button"
-                      onClick={handleOpenFolder}
-                      className="py-2.5 px-4 bg-[#E0F2FE] hover:bg-[#BAE6FD] border border-[#0284C7] text-[#0369A1] font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      Show in Explorer
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowRenderModal(false)}
-                      className="py-2.5 px-4 bg-[#F1F5F9] hover:bg-[#E2E8F0] border border-[#CBD5E1] text-[#0F172A] font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer"
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {renderStep === "failed" && (
-                <div className="flex flex-col items-center justify-center py-6 gap-6">
-                  {/* Big Red Cross */}
-                  <div className="w-16 h-16 rounded-full bg-red-50 border-2 border-red-500 flex items-center justify-center text-red-500 text-3xl font-extrabold">
-                    ✕
-                  </div>
-
-                  <div className="text-center">
-                    <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider text-red-600 font-bold">Compilation Failed</h4>
-                    <p className="text-xs text-red-500 mt-1 max-w-sm font-mono p-3 bg-red-50 rounded-lg border border-red-100 overflow-x-auto text-left">
-                      {renderError || "Unknown execution error."}
-                    </p>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-3 w-full mt-2">
-                    <button
-                      type="button"
-                      onClick={handleStartRender}
-                      className="py-2.5 px-4 bg-[#EF4444] hover:bg-red-600 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer"
-                    >
-                      Try Again
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowRenderModal(false)}
-                      className="py-2.5 px-4 bg-[#F1F5F9] hover:bg-[#E2E8F0] border border-[#CBD5E1] text-[#0F172A] font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
 
+      {/* 5. Floating Background Render status badge */}
+      {!showRenderModal && Object.values(renders).some(r => r.status === "rendering") && (
+        <div 
+          onClick={() => setShowRenderModal(true)}
+          className="fixed bottom-6 right-6 z-40 bg-[#0B0F19]/95 border border-emerald-500/30 text-[#34D399] px-4 py-3 rounded-xl shadow-[0_4px_20px_rgba(16,185,129,0.3)] flex flex-col gap-1.5 cursor-pointer animate-bounce hover:scale-105 transition-all font-mono text-xs font-bold"
+        >
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Rendering in Background ({Object.values(renders).filter(r => r.status === "rendering").length})</span>
+          </div>
+          <div className="flex flex-col gap-1 text-[10px] text-slate-400">
+            {Object.values(renders).filter(r => r.status === "rendering").map(r => (
+              <div key={r.renderId} className="flex justify-between gap-4">
+                <span className="truncate max-w-[120px] font-bold text-slate-300">{r.filename}</span>
+                <span className="text-emerald-400 font-extrabold">{r.progress}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

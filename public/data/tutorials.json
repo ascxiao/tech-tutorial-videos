@@ -1,159 +1,179 @@
 [
   {
     "id": "001",
-    "seriesTitle": "NEXT.JS 15 COOKIES FIX",
+    "seriesTitle": "MERGE SORT",
     "audioFile": "/public/audio/001.mp3",
     "captionFile": "/public/data/001_captions.json",
-    "codeSnippet": "interface User {\n  id: number;\n  name: string;\n  email: string;\n}\n\nfunction fetchUser(id: number): unknown {\n  return null; \n}\n\nfunction displayUserProfile(userId: number) {\n  const data = fetchUser(userId);\n\n  if (data && typeof data === 'object' && 'name' in data && 'email' in data) {\n    const user = data as User; \n    console.log(`Welcome back, ${user.name.toUpperCase()}!`);\n    return;\n  }\n\n  console.log(\"Welcome, Guest! Please complete your profile.\");\n}\n\ndisplayUserProfile(101);",
-    "language": "typescript",
+    "backgroundMusic": "/public/audio/videoplayback.m4a",
+    "codeSnippet": "def merge_sort(arr):\n    if len(arr) <= 1:\n        return arr\n\n    mid = len(arr) // 2\n    left_half = merge_sort(arr[:mid])\n    right_half = merge_sort(arr[mid:])\n\n    return merge(left_half, right_half)\n\ndef merge(left, right):\n    sorted_arr = []\n    i = j = 0\n\n    while i < len(left) and j < len(right):\n        if left[i] < right[j]:\n            sorted_arr.append(left[i])\n            i += 1\n        else:\n            sorted_arr.append(right[j])\n            j += 1\n\n    sorted_arr.extend(left[i:])\n    sorted_arr.extend(right[j:])\n    \n    return sorted_arr",
+    "language": "python",
     "lineTimings": [
       {
         "lineStart": 1,
         "lineEnd": 1,
         "startFrame": 0,
-        "endFrame": 34
+        "endFrame": 49
       },
       {
         "lineStart": 2,
         "lineEnd": 2,
-        "startFrame": 34,
-        "endFrame": 68
+        "startFrame": 49,
+        "endFrame": 98
       },
       {
         "lineStart": 3,
         "lineEnd": 3,
-        "startFrame": 68,
-        "endFrame": 103
+        "startFrame": 98,
+        "endFrame": 147
       },
       {
         "lineStart": 4,
         "lineEnd": 4,
-        "startFrame": 103,
-        "endFrame": 137
+        "startFrame": 147,
+        "endFrame": 197
       },
       {
         "lineStart": 5,
         "lineEnd": 5,
-        "startFrame": 137,
-        "endFrame": 172
+        "startFrame": 197,
+        "endFrame": 246
       },
       {
         "lineStart": 6,
         "lineEnd": 6,
-        "startFrame": 172,
-        "endFrame": 206
+        "startFrame": 246,
+        "endFrame": 295
       },
       {
         "lineStart": 7,
         "lineEnd": 7,
-        "startFrame": 206,
-        "endFrame": 241
+        "startFrame": 295,
+        "endFrame": 344
       },
       {
         "lineStart": 8,
         "lineEnd": 8,
-        "startFrame": 241,
-        "endFrame": 275
+        "startFrame": 344,
+        "endFrame": 394
       },
       {
         "lineStart": 9,
         "lineEnd": 9,
-        "startFrame": 275,
-        "endFrame": 309
+        "startFrame": 394,
+        "endFrame": 443
       },
       {
         "lineStart": 10,
         "lineEnd": 10,
-        "startFrame": 309,
-        "endFrame": 344
+        "startFrame": 443,
+        "endFrame": 492
       },
       {
         "lineStart": 11,
         "lineEnd": 11,
-        "startFrame": 344,
-        "endFrame": 378
+        "startFrame": 492,
+        "endFrame": 541
       },
       {
         "lineStart": 12,
         "lineEnd": 12,
-        "startFrame": 378,
-        "endFrame": 413
+        "startFrame": 541,
+        "endFrame": 591
       },
       {
         "lineStart": 13,
         "lineEnd": 13,
-        "startFrame": 413,
-        "endFrame": 447
+        "startFrame": 591,
+        "endFrame": 640
       },
       {
         "lineStart": 14,
         "lineEnd": 14,
-        "startFrame": 447,
-        "endFrame": 482
+        "startFrame": 640,
+        "endFrame": 689
       },
       {
         "lineStart": 15,
         "lineEnd": 15,
-        "startFrame": 482,
-        "endFrame": 516
+        "startFrame": 689,
+        "endFrame": 739
       },
       {
         "lineStart": 16,
         "lineEnd": 16,
-        "startFrame": 516,
-        "endFrame": 550
+        "startFrame": 739,
+        "endFrame": 788
       },
       {
         "lineStart": 17,
         "lineEnd": 17,
-        "startFrame": 550,
-        "endFrame": 585
+        "startFrame": 788,
+        "endFrame": 837
       },
       {
         "lineStart": 18,
         "lineEnd": 18,
-        "startFrame": 585,
-        "endFrame": 619
+        "startFrame": 837,
+        "endFrame": 886
       },
       {
         "lineStart": 19,
         "lineEnd": 19,
-        "startFrame": 619,
-        "endFrame": 654
+        "startFrame": 886,
+        "endFrame": 936
       },
       {
         "lineStart": 20,
         "lineEnd": 20,
-        "startFrame": 654,
-        "endFrame": 688
+        "startFrame": 936,
+        "endFrame": 985
       },
       {
         "lineStart": 21,
         "lineEnd": 21,
-        "startFrame": 688,
-        "endFrame": 723
+        "startFrame": 985,
+        "endFrame": 1034
       },
       {
         "lineStart": 22,
         "lineEnd": 22,
-        "startFrame": 723,
-        "endFrame": 757
+        "startFrame": 1034,
+        "endFrame": 1083
       },
       {
         "lineStart": 23,
         "lineEnd": 23,
-        "startFrame": 757,
-        "endFrame": 792
+        "startFrame": 1083,
+        "endFrame": 1133
+      },
+      {
+        "lineStart": 24,
+        "lineEnd": 24,
+        "startFrame": 1133,
+        "endFrame": 1182
+      },
+      {
+        "lineStart": 25,
+        "lineEnd": 25,
+        "startFrame": 1182,
+        "endFrame": 1231
+      },
+      {
+        "lineStart": 26,
+        "lineEnd": 26,
+        "startFrame": 1231,
+        "endFrame": 1281
       }
     ],
-    "videoSetup": "before_after",
+    "videoSetup": "standard",
     "beforeCodeSnippet": "interface User {\n  id: number;\n  name: string;\n  email: string;\n}\n\nfunction fetchUser(id: number): any {\n  return null; \n}\n\nfunction displayUserProfile(userId: number) {\n  const user = fetchUser(userId) as User;\n  console.log(`Welcome back, ${user.name.toUpperCase()}!`);\n  console.log(`Email: ${user.email}`);\n}\n\ndisplayUserProfile(101);",
     "beforeDurationMs": 5000,
     "lineIntervalMs": 1500,
     "channelName": "@TechQuickies",
     "challengeText": "How will you debug this?",
-    "narrationText": "The original code crashed at runtime because it blindly trusted the API by using a type assertion, resulting in a TypeError when trying to read properties from a null value. This was fixed by switching the return type to unknown to acknowledge the unpredictable nature of external data, followed by a type guard that verifies the object structure before accessing its properties. If the data validation fails, the code now safely switches to a fallback guest message instead of throwing an error.",
+    "narrationText": "Building a merge sort algorithm relies on a divide-and-conquer strategy divided into two main parts: splitting the data recursively and merging it back together in order. You start by creating a main function with a base case that returns the array if it contains one or zero elements, as it is already sorted. If the array is larger, you find the midpoint, split the array into left and right halves, and recursively call the function on both halves until the entire list is broken down into single-element pieces. Finally, you build a helper function that uses two pointers to compare these elements side-by-side, appends the smaller value to a new list, and grabs any remaining leftover numbers, passing the newly ordered pieces back up the recursive chain until the entire dataset is seamlessly rebuilt.",
     "outroText": "Follow for more quick challenges!",
-    "voiceName": "en-US-GuyNeural"
+    "voiceName": "en-US-GuyNeural",
+    "bgmVolume": 0.73
   }
 ]

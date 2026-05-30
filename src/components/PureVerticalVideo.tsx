@@ -9,9 +9,10 @@ import { TutorialData } from "../types";
 const AudioTracks: React.FC<{
   audioFile: string;
   backgroundMusic?: string;
+  bgmVolume?: number;
   introFrames: number;
   videoSetup?: string;
-}> = React.memo(({ audioFile, backgroundMusic, introFrames, videoSetup }) => {
+}> = React.memo(({ audioFile, backgroundMusic, bgmVolume = 0.35, introFrames, videoSetup }) => {
   return (
     <>
       {videoSetup === "before_after" ? (
@@ -23,7 +24,7 @@ const AudioTracks: React.FC<{
       )}
 
       {backgroundMusic && (
-        <Audio src={staticFile(backgroundMusic)} volume={0.22} key={`bgm-audio-${backgroundMusic}`} />
+        <Audio src={staticFile(backgroundMusic)} volume={bgmVolume} key={`bgm-audio-${backgroundMusic}-${bgmVolume}`} />
       )}
     </>
   );
@@ -45,6 +46,7 @@ export const PureVerticalVideo: React.FC<TutorialData> = ({
   channelName,
   challengeText,
   outroText,
+  bgmVolume,
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
@@ -93,10 +95,12 @@ export const PureVerticalVideo: React.FC<TutorialData> = ({
         />
       )}
 
-      {/* Static, isolated audio tracks */}
+      {/* Static, isolated audio tracks with strict remount keying */}
       <AudioTracks
+        key={`audio-tracks-${backgroundMusic}-${bgmVolume}`}
         audioFile={audioFile}
         backgroundMusic={backgroundMusic}
+        bgmVolume={bgmVolume}
         introFrames={introFrames}
         videoSetup={videoSetup}
       />

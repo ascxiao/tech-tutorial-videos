@@ -43,6 +43,7 @@ const tutorialSchema = z.object({
   narrationText: z.string().optional().describe("Narrative script spoken in audio track"),
   outroText: z.string().optional().describe("Outro call to action text"),
   voiceName: z.string().optional().describe("Neural Voice select (e.g. en-US-GuyNeural)"),
+  bgmVolume: z.number().optional().describe("Background music volume level (0.0 to 1.0)"),
 });
 
 export const RemotionRoot: React.FC = () => {
@@ -58,6 +59,7 @@ export const RemotionRoot: React.FC = () => {
           audioFile: cleanPath(tutorial.audioFile),
           captionFile: cleanPath(tutorial.captionFile),
           backgroundMusic: tutorial.backgroundMusic ? cleanPath(tutorial.backgroundMusic) : undefined,
+          bgmVolume: tutorial.bgmVolume !== undefined ? tutorial.bgmVolume : 0.35,
         };
 
         return (
