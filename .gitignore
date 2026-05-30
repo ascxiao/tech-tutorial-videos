@@ -14,3 +14,6 @@ public/audio/*
 # Rendered output MP4 videos inside the public folder
 public/output_*.mp4
 public/output_*.webm
+
+# Standalone Electron desktop packaging build outputs
+dist_desktop/
