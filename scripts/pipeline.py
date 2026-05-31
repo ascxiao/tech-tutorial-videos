@@ -35,8 +35,7 @@ async def generate_tts(text, output_path):
     install_and_import("edge_tts")
     import edge_tts
     
-    # Using a premium, clear natural voice for tech narration
-    communicate = edge_tts.Communicate(text, "en-US-GuyNeural")
+    communicate = edge_tts.Communicate(text, "en-US-GuyNeural", volume="-15%")
     await communicate.save(output_path)
     print("[+] TTS voiceover generated successfully!")
 

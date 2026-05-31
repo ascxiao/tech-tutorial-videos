@@ -20,7 +20,7 @@ async def main():
     install_and_import("edge_tts")
     import edge_tts
     
-    communicate = edge_tts.Communicate(text, voice)
+    communicate = edge_tts.Communicate(text, voice, volume="-15%")
     await communicate.save(output_path)
     print(f"[+] TTS successfully saved to: {output_path}")
 

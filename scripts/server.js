@@ -114,13 +114,21 @@ app.post('/api/transcribe', (req, res) => {
 });
 
 // Helper to find the next available incremented output filename
-function getIncrementedOutputPath(id) {
+function getIncrementedOutputPath(id, seriesTitle) {
+  let slug = "";
+  if (seriesTitle) {
+    slug = "_" + seriesTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
   let index = 0;
-  let filename = `output_${id}.mp4`;
+  let filename = `output_${id}${slug}.mp4`;
   let fullPath = path.resolve(projectRoot, 'public', filename);
   while (fs.existsSync(fullPath)) {
     index++;
-    filename = `output_${id}_${index}.mp4`;
+    filename = `output_${id}${slug}_${index}.mp4`;
     fullPath = path.resolve(projectRoot, 'public', filename);
   }
   return { filename, fullPath };
@@ -128,10 +136,10 @@ function getIncrementedOutputPath(id) {
 
 // 5. POST /api/render - triggers background remotion headless video render with progress tracking
 app.post('/api/render', (req, res) => {
-  const { id } = req.body;
+  const { id, seriesTitle } = req.body;
   
   // Find next incremented filename to allow concurrent renders of the same composition!
-  const { filename, fullPath } = getIncrementedOutputPath(id);
+  const { filename, fullPath } = getIncrementedOutputPath(id, seriesTitle);
   const renderId = path.basename(filename, '.mp4'); // e.g. "output_001_1" or "output_001"
 
   activeRenders[renderId] = {

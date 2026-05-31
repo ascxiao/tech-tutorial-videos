@@ -9,24 +9,18 @@ import { resolveAssetUrl } from "../utils";
 // Memoized AudioTracks component to completely isolate HTML5 audio tags from per-frame useCurrentFrame() updates
 const AudioTracks: React.FC<{
   audioFile: string;
-  backgroundMusic?: string;
-  bgmVolume?: number;
   introFrames: number;
   videoSetup?: string;
   pipelineRevision?: number;
-}> = React.memo(({ audioFile, backgroundMusic, bgmVolume = 0.35, introFrames, videoSetup, pipelineRevision }) => {
+}> = React.memo(({ audioFile, introFrames, videoSetup, pipelineRevision }) => {
   return (
     <>
       {videoSetup === "before_after" ? (
         <Sequence from={introFrames} key={`voiceover-seq-${audioFile}-${pipelineRevision}`}>
-          <Audio src={resolveAssetUrl(audioFile, pipelineRevision)} pauseWhenBuffering key={`voiceover-audio-delayed-${audioFile}-${pipelineRevision}`} />
+          <Audio src={resolveAssetUrl(audioFile, pipelineRevision)} volume={0.9} pauseWhenBuffering key={`voiceover-audio-delayed-${audioFile}-${pipelineRevision}`} />
         </Sequence>
       ) : (
-        <Audio src={resolveAssetUrl(audioFile, pipelineRevision)} pauseWhenBuffering key={`voiceover-audio-standard-${audioFile}-${pipelineRevision}`} />
-      )}
-
-      {backgroundMusic && (
-        <Audio src={resolveAssetUrl(backgroundMusic, pipelineRevision)} volume={bgmVolume} pauseWhenBuffering key={`bgm-audio-${backgroundMusic}-${pipelineRevision}`} />
+        <Audio src={resolveAssetUrl(audioFile, pipelineRevision)} volume={0.9} pauseWhenBuffering key={`voiceover-audio-standard-${audioFile}-${pipelineRevision}`} />
       )}
     </>
   );
@@ -101,10 +95,8 @@ export const PureVerticalVideo: React.FC<TutorialData> = ({
 
       {/* Static, isolated audio tracks with strict remount keying */}
       <AudioTracks
-        key={`audio-tracks-${backgroundMusic}-${pipelineRevision}`}
+        key={`audio-tracks-${pipelineRevision}`}
         audioFile={audioFile}
-        backgroundMusic={backgroundMusic}
-        bgmVolume={bgmVolume}
         introFrames={introFrames}
         videoSetup={videoSetup}
         pipelineRevision={pipelineRevision}

@@ -192,7 +192,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       const res = await fetch("http://localhost:3005/api/render", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, seriesTitle }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -408,7 +408,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
       seriesTitle,
       audioFile: `/public/audio/${id}.mp3`,
       captionFile: `/public/data/${id}_captions.json`,
-      backgroundMusic: selectedBgm !== "none" ? `/public/audio/${selectedBgm}` : undefined,
+      backgroundMusic: undefined,
       codeSnippet: cleanedCode,
       language,
       lineTimings: alignedTimings,
@@ -550,7 +550,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
     seriesTitle,
     audioFile: `audio/${id}.mp3`,
     captionFile: `data/${id}_captions.json`,
-    backgroundMusic: selectedBgm !== "none" ? `audio/${selectedBgm}` : undefined,
+    backgroundMusic: undefined,
     codeSnippet: parsedCleanedCode,
     language,
     lineTimings,
@@ -838,63 +838,7 @@ export const StandaloneDashboard: React.FC<StandaloneDashboardProps> = ({ initia
 
           <div className="flex flex-col gap-3.5 overflow-hidden min-h-0 flex-1">
             
-            {/* Background Music Selector & Asset Uploader */}
-            <div className="bg-[#F8FAFC] p-3 rounded-lg border border-[#E2E8F0] flex flex-col gap-2 shrink-0">
-              <label className="block text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                <Music size={12} className="text-[#38BDF8]" />
-                Background Music library
-              </label>
-              
-              <div className="flex gap-2">
-                <select
-                  value={selectedBgm}
-                  onChange={(e) => setSelectedBgm(e.target.value)}
-                  className="flex-1 bg-[#FFFFFF] border border-[#CBD5E1] text-[#0F172A] px-2 py-1.5 rounded font-mono text-xs focus:outline-none cursor-pointer"
-                >
-                  <option value="none">No Background Music (Muted)</option>
-                  {bgmList.map((bg, idx) => (
-                    <option key={idx} value={bg}>{bg}</option>
-                  ))}
-                </select>
-
-                {/* Direct drag & drop uploader button */}
-                <label className="px-3 py-1.5 bg-[#38BDF8] hover:bg-[#0284C7] text-white font-bold rounded flex items-center gap-1.5 text-xs cursor-pointer select-none uppercase tracking-wide shrink-0">
-                  <Upload size={12} />
-                  Upload
-                  <input
-                    type="file"
-                    accept="audio/*, .mp3"
-                    onChange={handleBgmUpload}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              {/* Dynamic BGM Volume Customizer */}
-              <div className={`flex flex-col gap-1.5 mt-2 bg-white/50 border border-slate-100 p-2 rounded-lg transition-all duration-350 ${selectedBgm === "none" ? "opacity-45 pointer-events-none select-none" : ""}`}>
-                <div className="flex justify-between items-center text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold">
-                  <span>Background Volume</span>
-                  <span className="text-emerald-500 font-extrabold">{selectedBgm === "none" ? "Muted" : `${Math.round(bgmVolume * 100)}%`}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  disabled={selectedBgm === "none"}
-                  value={selectedBgm === "none" ? 0 : Math.round(bgmVolume * 100)}
-                  onChange={(e) => setBgmVolume(parseFloat(e.target.value) / 100)}
-                  className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500 disabled:opacity-50"
-                />
-              </div>
-
-              {/* Upload Status bar */}
-              {uploadStatus === "uploading" && (
-                <span className="text-[8px] font-mono text-[#EAB308] uppercase font-bold animate-pulse">Uploading file...</span>
-              )}
-              {uploadStatus === "success" && (
-                <span className="text-[8px] font-mono text-[#10B981] uppercase font-bold">Successfully uploaded and added!</span>
-              )}
-            </div>
+            {/* Background Music feature disabled to eliminate static feedback noise */}
 
             {/* Neural Voice Selection Selector */}
             <div className="bg-[#F8FAFC] p-3 rounded-lg border border-[#E2E8F0] flex flex-col gap-2 shrink-0">

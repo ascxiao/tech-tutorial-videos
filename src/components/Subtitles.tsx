@@ -55,27 +55,21 @@ export const Subtitles: React.FC<SubtitlesProps> = ({
 
   const currentTime = currentFrame / fps;
 
-  // Find index of currently active word
-  let activeWordIdx = captions.findIndex(
-    (word) => currentTime >= word.start && currentTime <= word.end
-  );
-
-  // Fallback: If no word is currently active (e.g. silences), find the closest word to keep context on-screen
-  if (activeWordIdx === -1) {
-    const upcomingIdx = captions.findIndex((word) => word.start > currentTime);
-    if (upcomingIdx !== -1) {
-      activeWordIdx = Math.max(0, upcomingIdx - 1);
+  // Find the index of the word that is currently active, or was most recently active (gap-free)
+  let activeWordIdx = 0;
+  for (let i = 0; i < captions.length; i++) {
+    if (currentTime >= captions[i].start) {
+      activeWordIdx = i;
     } else {
-      activeWordIdx = captions.length - 1;
+      break;
     }
   }
 
-  // Slice a rolling window of 6 words (e.g. 2 before and 3 after) to avoid cluttering vertical layout
-  const WINDOW_BEFORE = 2;
-  const WINDOW_AFTER = 3;
-  const startIdx = Math.max(0, activeWordIdx - WINDOW_BEFORE);
-  const endIdx = Math.min(captions.length, activeWordIdx + WINDOW_AFTER + 1);
-  const visibleWords = captions.slice(startIdx, endIdx);
+  // Segment captions into stable pages of 4 words each
+  const wordsPerPage = 4;
+  const activePageIdx = Math.floor(activeWordIdx / wordsPerPage);
+  const startIdx = activePageIdx * wordsPerPage;
+  const visibleWords = captions.slice(startIdx, startIdx + wordsPerPage);
 
   return (
     <div className="w-full h-[576px] flex flex-col justify-center items-center p-12 bg-[#050B08] border-t-4 border-emerald-950/70 box-border select-none relative">
@@ -87,16 +81,16 @@ export const Subtitles: React.FC<SubtitlesProps> = ({
       {/* Kinetic Typography container */}
       <div className="flex flex-wrap gap-x-5 gap-y-6 justify-center items-center max-w-[90%] text-center">
         {visibleWords.map((wordObj, idx) => {
-          const absoluteIdx = startIdx + idx;
-          const isActive = absoluteIdx === activeWordIdx;
+          const globalIdx = startIdx + idx;
+          const isActive = globalIdx === activeWordIdx;
 
           return (
             <span
-              key={absoluteIdx}
-              className={`text-4xl transition-all duration-150 transform tracking-wide ${
+              key={globalIdx}
+              className={`text-4xl tracking-wide transition-[transform,color,opacity] duration-100 transform will-change-[transform,opacity] ${
                 isActive
-                  ? "scale-115 text-[#34D399] font-black border-b-4 border-[#34D399] pb-1 px-1 shadow-[0_4px_12px_rgba(52,211,153,0.15)]"
-                  : "text-white opacity-30 font-medium"
+                  ? "scale-110 text-[#34D399] font-black opacity-100"
+                  : "text-white opacity-30 font-medium scale-100"
               }`}
             >
               {wordObj.word}

@@ -7,13 +7,8 @@ out
 *.log
 npm_log.txt
 
-# Generated tutorial audio voiceovers and uploaded background music
-public/audio/*
-!public/audio/.gitkeep
-
-# Rendered output MP4 videos inside the public folder
-public/output_*.mp4
-public/output_*.webm
+# Ignore all dynamic user-generated assets, voiceovers, transcripts, and video renders
+public/
 
 # Standalone Electron desktop packaging build outputs
 dist_desktop/
