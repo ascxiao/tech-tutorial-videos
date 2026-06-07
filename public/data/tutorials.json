@@ -390,5 +390,331 @@
     "outroText": "Follow for more quick debugs!",
     "voiceName": "en-US-MichelleNeural",
     "bgmVolume": 0.1
+  },
+  {
+    "id": "008",
+    "seriesTitle": "Contains duplicate (leetcode 217)",
+    "audioFile": "/public/audio/008.mp3",
+    "captionFile": "/public/data/008_captions.json",
+    "codeSnippet": "def containsDuplicate(nums):\n    return len(nums) != len(set(nums))",
+    "language": "python",
+    "lineTimings": [
+      {
+        "lineStart": 1,
+        "lineEnd": 1,
+        "startFrame": 0,
+        "endFrame": 195
+      },
+      {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "startFrame": 195,
+        "endFrame": 391
+      }
+    ],
+    "videoSetup": "standard",
+    "beforeCodeSnippet": "def log_message(filename, message):\n    file = open(filename, \"a\")\n    file.write(message + \"\\n\")\n    file.close()",
+    "beforeDurationMs": 5000,
+    "lineIntervalMs": 1500,
+    "channelName": "@SyntaxSandbox",
+    "challengeText": "How will you debug this?",
+    "narrationText": "Convert the array into a set, which automatically drops any duplicate numbers. Then, compare the length of the unique set to the original array. If the lengths don't match, duplicates exist, and it returns True",
+    "outroText": "Follow for more quick debugs!",
+    "voiceName": "en-US-MichelleNeural",
+    "bgmVolume": 0.1
+  },
+  {
+    "id": "009",
+    "seriesTitle": "Valid Anagram (LeetCode 242)",
+    "audioFile": "/public/audio/009.mp3",
+    "captionFile": "/public/data/009_captions.json",
+    "codeSnippet": "from collections import Counter\n\ndef isAnagram(s, t):\n    return Counter(s) == Counter(t)",
+    "language": "python",
+    "lineTimings": [
+      {
+        "lineStart": 1,
+        "lineEnd": 1,
+        "startFrame": 0,
+        "endFrame": 122
+      },
+      {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "startFrame": 122,
+        "endFrame": 244
+      },
+      {
+        "lineStart": 3,
+        "lineEnd": 3,
+        "startFrame": 244,
+        "endFrame": 367
+      },
+      {
+        "lineStart": 4,
+        "lineEnd": 4,
+        "startFrame": 367,
+        "endFrame": 489
+      }
+    ],
+    "videoSetup": "standard",
+    "beforeCodeSnippet": "def log_message(filename, message):\n    file = open(filename, \"a\")\n    file.write(message + \"\\n\")\n    file.close()",
+    "beforeDurationMs": 5000,
+    "lineIntervalMs": 1500,
+    "channelName": "@SyntaxSandbox",
+    "challengeText": "How will you debug this?",
+    "narrationText": "Import Counter from Python's collections module to instantly map out the frequency of every letter in both strings. If both strings share the exact same characters with identical frequencies, they are anagrams. Comparing the two counters directly handles the logic in a single line.",
+    "outroText": "Follow for more quick tutorials!",
+    "voiceName": "en-US-MichelleNeural",
+    "bgmVolume": 0.1
+  },
+  {
+    "id": "010",
+    "seriesTitle": "Two Sum (LeetCode 1)",
+    "audioFile": "/public/audio/010.mp3",
+    "captionFile": "/public/data/010_captions.json",
+    "codeSnippet": "def twoSum(nums, target):\n    seen = {}\n    for i, num in enumerate(nums):\n        diff = target - num\n        if diff in seen:\n            return [seen[diff], i]\n        seen[num] = i",
+    "language": "python",
+    "lineTimings": [
+      {
+        "lineStart": 1,
+        "lineEnd": 1,
+        "startFrame": 0,
+        "endFrame": 73
+      },
+      {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "startFrame": 73,
+        "endFrame": 147
+      },
+      {
+        "lineStart": 3,
+        "lineEnd": 3,
+        "startFrame": 147,
+        "endFrame": 220
+      },
+      {
+        "lineStart": 4,
+        "lineEnd": 4,
+        "startFrame": 220,
+        "endFrame": 294
+      },
+      {
+        "lineStart": 5,
+        "lineEnd": 5,
+        "startFrame": 294,
+        "endFrame": 367
+      },
+      {
+        "lineStart": 6,
+        "lineEnd": 6,
+        "startFrame": 367,
+        "endFrame": 441
+      },
+      {
+        "lineStart": 7,
+        "lineEnd": 7,
+        "startFrame": 441,
+        "endFrame": 514
+      }
+    ],
+    "videoSetup": "standard",
+    "beforeCodeSnippet": "def log_message(filename, message):\n    file = open(filename, \"a\")\n    file.write(message + \"\\n\")\n    file.close()",
+    "beforeDurationMs": 5000,
+    "lineIntervalMs": 1500,
+    "channelName": "@SyntaxSandbox",
+    "challengeText": "How will you debug this?",
+    "narrationText": "Use a dictionary to store previously visited numbers as keys and their indices as values. Loop through the array, calculate the exact complement needed to hit the target, and check if it’s already in your dictionary. Once a match is found, immediately return the stored index and current index.",
+    "outroText": "Follow for more quick tutorials!",
+    "voiceName": "en-US-MichelleNeural",
+    "bgmVolume": 0.1
+  },
+  {
+    "id": "011",
+    "seriesTitle": "Valid Palindrome (LeetCode 125)",
+    "audioFile": "/public/audio/011.mp3",
+    "captionFile": "/public/data/011_captions.json",
+    "codeSnippet": "def isPalindrome(s):\n    clean = [c.lower() for c in s if c.isalnum()]\n    return clean == clean[::-1]",
+    "language": "python",
+    "lineTimings": [
+      {
+        "lineStart": 1,
+        "lineEnd": 1,
+        "startFrame": 0,
+        "endFrame": 175
+      },
+      {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "startFrame": 175,
+        "endFrame": 351
+      },
+      {
+        "lineStart": 3,
+        "lineEnd": 3,
+        "startFrame": 351,
+        "endFrame": 527
+      }
+    ],
+    "videoSetup": "standard",
+    "beforeCodeSnippet": "def log_message(filename, message):\n    file = open(filename, \"a\")\n    file.write(message + \"\\n\")\n    file.close()",
+    "beforeDurationMs": 5000,
+    "lineIntervalMs": 1500,
+    "channelName": "@SyntaxSandbox",
+    "challengeText": "How will you debug this?",
+    "narrationText": "First, filter out all non-alphanumeric characters and convert the remaining text to lowercase using a list comprehension. Then, use Python's slicing trick [::-1] to reverse the cleaned list. If the forward version perfectly matches the reversed version, it's a palindrome.",
+    "outroText": "Follow for more quick tutorials!",
+    "voiceName": "en-US-MichelleNeural",
+    "bgmVolume": 0.1
+  },
+  {
+    "id": "012",
+    "seriesTitle": "Best Time to Buy and Sell Stock (LeetCode 121)",
+    "audioFile": "/public/audio/012.mp3",
+    "captionFile": "/public/data/012_captions.json",
+    "codeSnippet": "def maxProfit(prices):\n    min_price, max_prof = float('inf'), 0\n    for price in prices:\n        min_price = min(min_price, price)\n        max_prof = max(max_prof, price - min_price)\n    return max_prof",
+    "language": "python",
+    "lineTimings": [
+      {
+        "lineStart": 1,
+        "lineEnd": 1,
+        "startFrame": 0,
+        "endFrame": 80
+      },
+      {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "startFrame": 80,
+        "endFrame": 160
+      },
+      {
+        "lineStart": 3,
+        "lineEnd": 3,
+        "startFrame": 160,
+        "endFrame": 240
+      },
+      {
+        "lineStart": 4,
+        "lineEnd": 4,
+        "startFrame": 240,
+        "endFrame": 320
+      },
+      {
+        "lineStart": 5,
+        "lineEnd": 5,
+        "startFrame": 320,
+        "endFrame": 401
+      },
+      {
+        "lineStart": 6,
+        "lineEnd": 6,
+        "startFrame": 401,
+        "endFrame": 481
+      }
+    ],
+    "videoSetup": "standard",
+    "beforeCodeSnippet": "def log_message(filename, message):\n    file = open(filename, \"a\")\n    file.write(message + \"\\n\")\n    file.close()",
+    "beforeDurationMs": 5000,
+    "lineIntervalMs": 1500,
+    "channelName": "@SyntaxSandbox",
+    "challengeText": "How will you debug this?",
+    "narrationText": "Loop through the stock prices while tracking the lowest price seen so far. At each step, calculate the potential profit if you sold at the current price and update your maximum profit if it beats the previous record. This efficiently solves the problem in a single pass without nested loops.",
+    "outroText": "Follow for more quick tutorials!",
+    "voiceName": "en-US-MichelleNeural",
+    "bgmVolume": 0.1
+  },
+  {
+    "id": "013",
+    "seriesTitle": "Single Number (LeetCode 136)",
+    "audioFile": "/public/audio/013.mp3",
+    "captionFile": "/public/data/013_captions.json",
+    "codeSnippet": "def singleNumber(nums):\n    res = 0\n    for n in nums:\n        res ^= n\n    return res",
+    "language": "python",
+    "lineTimings": [
+      {
+        "lineStart": 1,
+        "lineEnd": 1,
+        "startFrame": 0,
+        "endFrame": 116
+      },
+      {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "startFrame": 116,
+        "endFrame": 233
+      },
+      {
+        "lineStart": 3,
+        "lineEnd": 3,
+        "startFrame": 233,
+        "endFrame": 349
+      },
+      {
+        "lineStart": 4,
+        "lineEnd": 4,
+        "startFrame": 349,
+        "endFrame": 466
+      },
+      {
+        "lineStart": 5,
+        "lineEnd": 5,
+        "startFrame": 466,
+        "endFrame": 583
+      }
+    ],
+    "videoSetup": "standard",
+    "beforeCodeSnippet": "def log_message(filename, message):\n    file = open(filename, \"a\")\n    file.write(message + \"\\n\")\n    file.close()",
+    "beforeDurationMs": 5000,
+    "lineIntervalMs": 1500,
+    "channelName": "@SyntaxSandbox",
+    "challengeText": "How will you debug this?",
+    "narrationText": "This approach uses the XOR bitwise operator, which has a unique property: XORing a number by itself cancels it out and results in 0. Since every duplicate number appears exactly twice, they all cancel each other out as you loop through the array. The final value remaining in res is guaranteed to be the unique single number.",
+    "outroText": "Follow for more quick tutorials!",
+    "voiceName": "en-US-MichelleNeural",
+    "bgmVolume": 0.1
+  },
+  {
+    "id": "014",
+    "seriesTitle": "Invert Binary Tree (LeetCode 226)",
+    "audioFile": "/public/audio/014.mp3",
+    "captionFile": "/public/data/014_captions.json",
+    "codeSnippet": "def invertTree(root):\n    if root:\n        root.left, root.right = invertTree(root.right), invertTree(root.left)\n    return root",
+    "language": "python",
+    "lineTimings": [
+      {
+        "lineStart": 1,
+        "lineEnd": 1,
+        "startFrame": 0,
+        "endFrame": 122
+      },
+      {
+        "lineStart": 2,
+        "lineEnd": 2,
+        "startFrame": 122,
+        "endFrame": 244
+      },
+      {
+        "lineStart": 3,
+        "lineEnd": 3,
+        "startFrame": 244,
+        "endFrame": 366
+      },
+      {
+        "lineStart": 4,
+        "lineEnd": 4,
+        "startFrame": 366,
+        "endFrame": 488
+      }
+    ],
+    "videoSetup": "standard",
+    "beforeCodeSnippet": "def log_message(filename, message):\n    file = open(filename, \"a\")\n    file.write(message + \"\\n\")\n    file.close()",
+    "beforeDurationMs": 5000,
+    "lineIntervalMs": 1500,
+    "channelName": "@SyntaxSandbox",
+    "challengeText": "How will you debug this?",
+    "narrationText": "This is the famous problem that inspired the legendary \"Max Howell\" interview meme. It uses recursion to simultaneously swap the left and right children of the current node. The code elegantly flips the subtrees from the bottom up, returning the fully inverted tree once it hits the base case.",
+    "outroText": "Follow for more quick tutorials!",
+    "voiceName": "en-US-MichelleNeural",
+    "bgmVolume": 0.1
   }
 ]

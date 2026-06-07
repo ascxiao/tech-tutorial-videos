@@ -36,9 +36,6 @@ export const Header: React.FC<HeaderProps> = ({ seriesTitle, id, channelName }) 
           <span className="px-3 py-1 bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 text-sm font-black tracking-widest uppercase font-mono rounded">
             60-SEC QUICK FIX
           </span>
-          <span className="px-3 py-1 bg-emerald-500 text-slate-950 text-sm font-black tracking-widest uppercase font-mono rounded">
-            100% OFFLINE
-          </span>
         </div>
       </div>
     </div>
